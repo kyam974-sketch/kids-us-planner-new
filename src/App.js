@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 const CS = [
   {id:"mousy",name:"Mousy",color:"#8CB43B",em:"\u{1F42D}"},
@@ -16,9 +16,9 @@ export default function App() {
   const [sd, setSd] = useState(null);
   const [lessons, setL] = useState({});
   const [routines, setR] = useState({});
-  const [txt, setTxt] = useState("");
   const [scn, setScn] = useState(false);
   const [ss, setSs] = useState("");
+  const fr = useRef(null);
 
   useEffect(() => {
     const r = localStorage.getItem("k_r");
@@ -27,49 +27,49 @@ export default function App() {
     if (l) setL(JSON.parse(l));
   }, []);
 
-  const processText = async (type) => {
-    if (!txt.trim()) return;
-    setScn(true);
-    setSs("Claude sta decifrando le colonne...");
+  const uploadToAI = async (file, type) => {
+    setScn(true); setSs("Analisi PDF/Immagine...");
     try {
+      const b64 = await new Promise(r => {
+        const rd = new FileReader();
+        rd.onload = () => r(rd.result.split(',')[1]);
+        rd.readAsDataURL(file);
+      });
+
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-3-5-sonnet-20241022",
+          max_tokens: 4000,
           messages: [{
             role: "user",
-            content: `Il seguente testo proviene da una Teacher Guide Kids&Us a due colonne. Il copia-incolla ha mescolato le righe delle due colonne. 
-              COMPITO: 
-              1. Ricostruisci il senso logico separando le attività.
-              2. ${type === 'r' ? "Estrai Version A e Version B delle routine." : "Estrai le attività del Day dal punto 2 in poi."}
-              3. Rispondi SOLO con un array JSON: [{"name":"...","duration":5,"desc":"...","target":"..."}]
-              
-              TESTO MESCOLATO: ${txt}`
+            content: [
+              { type: file.type === "application/pdf" ? "document" : "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: b64 } },
+              { type: "text", text: `Analizza questa pagina Kids&Us. ATTENZIONE: Il testo è su DUE COLONNE, leggile con ordine logico. 
+                ${type === 'r' ? "Estrai le Routine Version A e Version B." : "Estrai le attività dal punto 2 in poi."}
+                Rispondi SOLO con JSON: 
+                ${type === 'r' ? "{'a': [{'name','duration','desc'}], 'b': [{'name','duration','desc'}]}" : "[{'name','duration','desc','target'}]"}` 
+              }
+            ]
           }]
         })
       });
 
       const d = await res.json();
-      const match = d.content[0].text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-      const parsed = JSON.parse(match[0]);
+      const parsed = JSON.parse(d.content[0].text.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
 
       if (type === "r") {
         const newR = { ...routines, [`${sc.id}|${sp}`]: parsed };
-        setR(newR);
-        localStorage.setItem("k_r", JSON.stringify(newR));
-        setSs("Routine salvate!");
+        setR(newR); localStorage.setItem("k_r", JSON.stringify(newR));
       } else {
         const key = `${sc.id}|${sp}|${sd}`;
-        setL(prev => ({ ...prev, [key]: parsed }));
-        localStorage.setItem("k_l", JSON.stringify({ ...lessons, [key]: parsed }));
-        setSs("Lezione ordinata!");
+        const newL = { ...lessons, [key]: parsed };
+        setL(newL); localStorage.setItem("k_l", JSON.stringify(newL));
       }
-      setTxt("");
-    } catch (e) {
-      setSs("Errore nell'analisi del testo.");
-    }
-    setTimeout(() => setScn(false), 2000);
+      setSs("✅ Caricato con successo!");
+    } catch (e) { setSs("❌ Errore nel caricamento."); }
+    setTimeout(() => setScn(false), 3000);
   };
 
   const curR = routines[`${sc?.id}|${sp}`];
@@ -81,9 +81,9 @@ export default function App() {
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
           <h2 style={{ fontWeight: 900, marginBottom: 25 }}>Kids&Us Planner 👋</h2>
           {CS.map(c => (
-            <div key={c.id} onClick={() => { setSc(c); setV("course"); }} style={{ background: "#fff", padding: 20, marginBottom: 15, borderRadius: 20, borderLeft: `8px solid ${c.color}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 15, boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
-              <span style={{ fontSize: 32 }}>{c.em}</span>
-              <b style={{ fontSize: 20 }}>{c.name}</b>
+            <div key={c.id} onClick={() => { setSc(c); setV("course"); }} style={{ background: "#fff", padding: 22, marginBottom: 15, borderRadius: 20, borderLeft: `8px solid ${c.color}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 18, boxShadow: "0 4px 15px rgba(0,0,0,0.04)" }}>
+              <span style={{ fontSize: 35 }}>{c.em}</span>
+              <b style={{ fontSize: 22 }}>{c.name}</b>
             </div>
           ))}
         </div>
@@ -91,68 +91,59 @@ export default function App() {
 
       {view === "course" && sc && (
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <button onClick={() => setV("home")} style={{ marginBottom: 20, border: "none", background: "none", fontWeight: 800, color: sc.color }}>← HOME</button>
-          <h2 style={{ color: sc.color, fontWeight: 900, fontSize: 28, marginBottom: 20 }}>{sc.name}</h2>
+          <button onClick={() => setV("home")} style={{ marginBottom: 25, border: "none", background: "none", fontWeight: 800, color: sc.color, fontSize: 16 }}>← HOME</button>
+          <h1 style={{ color: sc.color, fontWeight: 900, fontSize: 32, marginBottom: 25 }}>{sc.name}</h1>
           {["Story 1", "Story 2", "Story 3", "Story 4"].map(p => (
-            <div key={p} style={{ background: "#fff", padding: 18, borderRadius: 18, marginBottom: 15, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <b style={{ color: "#3C3C3B" }}>{p}</b>
-                <button onClick={() => { setSp(p); setV("routine_input"); }} style={{ fontSize: 11, background: routines[`${sc.id}|${p}`] ? "#E8F5E9" : "#f0f0f0", color: routines[`${sc.id}|${p}`] ? "#2E7D32" : "#888", padding: "6px 12px", borderRadius: 10, border: "none", fontWeight: 800 }}>
-                  {routines[`${sc.id}|${p}`] ? "✅ Routine OK" : "➕ Incolla Routine"}
+            <div key={p} style={{ background: "#fff", padding: 18, borderRadius: 20, marginBottom: 18, boxShadow: "0 2px 12px rgba(0,0,0,0.02)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
+                <b style={{ fontSize: 18 }}>{p}</b>
+                <button onClick={() => { setSp(p); fr.current.click(); }} style={{ fontSize: 12, background: routines[`${sc.id}|${p}`] ? "#E8F5E9" : "#F5F5F5", color: routines[`${sc.id}|${p}`] ? "#2E7D32" : "#888", padding: "8px 14px", borderRadius: 10, border: "none", fontWeight: 800 }}>
+                  {routines[`${sc.id}|${p}`] ? "✅ Routine OK" : "📸 Carica Routine"}
                 </button>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
                 {[...Array(10)].map((_, i) => (
-                  <button key={i} onClick={() => { setSp(p); setSd(i + 1); setV("lesson"); }} style={{ padding: 12, borderRadius: 12, border: "1px solid #eee", background: "#fdfdfd", fontWeight: 800 }}>{i + 1}</button>
+                  <button key={i} onClick={() => { setSp(p); setSd(i + 1); setV("lesson"); }} style={{ padding: 14, borderRadius: 12, border: "1px solid #eee", background: "#fdfdfd", fontWeight: 800 }}>{i + 1}</button>
                 ))}
               </div>
             </div>
           ))}
+          <input type="file" ref={fr} style={{ display: "none" }} onChange={e => uploadToAI(e.target.files[0], "r")} />
         </div>
       )}
 
-      {(view === "routine_input" || view === "lesson") && (
+      {view === "lesson" && (
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <button onClick={() => setV("course")} style={{ marginBottom: 20, border: "none", background: "none", fontWeight: 800, color: sc.color }}>← TORNA</button>
-          <div style={{ background: "#fff", padding: 25, borderRadius: 24, border: "1px solid #eee", marginBottom: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.05)" }}>
-            <h3 style={{fontWeight: 900, marginBottom: 10}}>{view === "routine_input" ? "Incolla Testo Routine" : `Incolla Testo Day ${sd}`}</h3>
-            <textarea 
-              value={txt} 
-              onChange={(e) => setTxt(e.target.value)} 
-              style={{ width: "100%", height: 200, padding: 15, borderRadius: 15, border: "1px solid #ddd", fontSize: 13 }} 
-              placeholder="Copia tutto il testo del PDF e incollalo qui..."
-            />
-            <button onClick={() => processText(view === "routine_input" ? "r" : "l")} style={{ width: "100%", background: sc.color, color: "#fff", padding: "16px", borderRadius: 16, border: "none", fontWeight: 800, marginTop: 15, cursor: "pointer" }}>
-              🚀 GENERA E RIORDINA
-            </button>
-            {scn && <div style={{ marginTop: 15, textAlign: "center", color: "#F26522", fontWeight: 800 }}>{ss}</div>}
-          </div>
-          
-          <div style={{ marginTop: 20 }}>
-            {view === "lesson" && curR && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          <button onClick={() => setV("course")} style={{ marginBottom: 20, border: "none", background: "none", fontWeight: 800, color: sc.color }}>← {sp}</button>
+          <div style={{ background: "#fff", padding: 25, borderRadius: 24, border: "1px solid #eee", marginBottom: 25, textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.05)" }}>
+             <h3 style={{ fontWeight: 900, color: sc.color, fontSize: 24 }}>Day {sd}</h3>
+             <div style={{ display: "flex", gap: 10, margin: "20px 0" }}>
                 {["a", "b"].map(v => (
-                  <button key={v} onClick={() => { localStorage.setItem(`v|${sc.id}|${sp}`, v); setSs(v); }} style={{ flex: 1, padding: 12, borderRadius: 14, border: "none", background: (localStorage.getItem(`v|${sc.id}|${sp}`) || "a") === v ? "#3C3C3B" : "#eee", color: (localStorage.getItem(`v|${sc.id}|${sp}`) || "a") === v ? "#fff" : "#888", fontWeight: 800 }}>Version {v.toUpperCase()}</button>
+                  <button key={v} onClick={() => { localStorage.setItem(`v|${sc.id}|${sp}`, v); setSs(v); }} style={{ flex: 1, padding: 14, borderRadius: 14, border: "none", background: ver === v ? "#3C3C3B" : "#eee", color: ver === v ? "#fff" : "#888", fontWeight: 800 }}>Version {v.toUpperCase()}</button>
                 ))}
-              </div>
-            )}
-            {/* Display Routine & Activities */}
-            {view === "lesson" && curR && curR[localStorage.getItem(`v|${sc.id}|${sp}`) || "a"]?.map((r, i) => (
-              <div key={i} style={{ background: "#fff", padding: 20, marginBottom: 12, borderRadius: 18, borderLeft: "6px solid #3C3C3B" }}>
-                <b>{r.name}</b> <span style={{float:"right", color:"#888"}}>{r.duration}'</span>
-                <p style={{ fontSize: 14, color: "#666", marginTop: 8 }}>{r.desc}</p>
+             </div>
+             <button onClick={() => fr.current.click()} style={{ width: "100%", background: sc.color, color: "#fff", padding: "18px", borderRadius: 18, border: "none", fontWeight: 800 }}>📸 SCANSIONA LEZIONE</button>
+             <input type="file" ref={fr} style={{ display: "none" }} onChange={e => uploadToAI(e.target.files[0], "l")} />
+          </div>
+
+          <div style={{ marginTop: 25 }}>
+            {curR?.[ver]?.map((r, i) => (
+              <div key={i} style={{ background: "#fff", padding: 22, marginBottom: 15, borderRadius: 20, borderLeft: "8px solid #3C3C3B", boxShadow: "0 4px 15px rgba(0,0,0,0.02)" }}>
+                <b>{r.name}</b> <span style={{float:"right", color:"#aaa"}}>{r.duration}'</span>
+                <p style={{ fontSize: 15, color: "#666", marginTop: 8 }}>{r.desc}</p>
               </div>
             ))}
             {lessons[`${sc.id}|${sp}|${sd}`]?.map((a, i) => (
-              <div key={i} style={{ background: "#fff", padding: 20, marginBottom: 12, borderRadius: 18, borderLeft: `6px solid ${sc.color}` }}>
+              <div key={i} style={{ background: "#fff", padding: 22, marginBottom: 15, borderRadius: 20, borderLeft: `8px solid ${sc.color}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><b>{a.name}</b> <span>{a.duration}'</span></div>
-                <p style={{ fontSize: 14, color: "#666", marginTop: 8 }}>{a.desc}</p>
-                {a.target && <div style={{ marginTop: 10, padding: 8, background: "#FFFDE7", borderRadius: 8, fontSize: 12 }}><b>Target:</b> {a.target}</div>}
+                <p style={{ fontSize: 15, color: "#666", marginTop: 8 }}>{a.desc}</p>
+                {a.target && <div style={{ marginTop: 15, padding: 12, background: "#FFFDE7", borderRadius: 12, fontSize: 13, borderLeft: "4px solid #FFD600" }}><b>Target Language:</b> {a.target}</div>}
               </div>
             ))}
           </div>
         </div>
       )}
+      {scn && <div style={{ position: "fixed", bottom: 40, left: "50%", transform: "translateX(-50%)", background: "#3C3C3B", color: "#fff", padding: "16px 32px", borderRadius: 50, zIndex: 2000, fontWeight: 800 }}>{ss}</div>}
     </div>
   );
 }
