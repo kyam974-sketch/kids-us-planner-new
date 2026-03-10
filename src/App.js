@@ -28,13 +28,18 @@ export default function App() {
   }, []);
 
   const uploadToAI = async (file, type) => {
-    setScn(true); setSs("Analisi PDF/Immagine...");
+    setScn(true); 
+    setSs("Inizio caricamento...");
+    
     try {
-      const b64 = await new Promise(r => {
+      const b64 = await new Promise((resolve, reject) => {
         const rd = new FileReader();
-        rd.onload = () => r(rd.result.split(',')[1]);
+        rd.onload = () => resolve(rd.result.split(',')[1]);
+        rd.onerror = reject;
         rd.readAsDataURL(file);
       });
+
+      setSs("Analisi in corso (Claude)...");
 
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -45,31 +50,55 @@ export default function App() {
           messages: [{
             role: "user",
             content: [
-              { type: file.type === "application/pdf" ? "document" : "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: b64 } },
-              { type: "text", text: `Analizza questa pagina Kids&Us. ATTENZIONE: Il testo è su DUE COLONNE, leggile con ordine logico. 
-                ${type === 'r' ? "Estrai le Routine Version A e Version B." : "Estrai le attività dal punto 2 in poi."}
-                Rispondi SOLO con JSON: 
-                ${type === 'r' ? "{'a': [{'name','duration','desc'}], 'b': [{'name','duration','desc'}]}" : "[{'name','duration','desc','target'}]"}` 
+              { 
+                type: file.type === "application/pdf" ? "document" : "image", 
+                source: { 
+                  type: "base64", 
+                  media_type: file.type || "image/jpeg", 
+                  data: b64 
+                } 
+              },
+              { 
+                type: "text", 
+                text: `Analizza questa pagina Kids&Us. Due colonne. 
+                ${type === 'r' ? "Estrai Routine A e B." : "Estrai attività Day."}
+                Rispondi SOLO JSON: [{"name","duration","desc","target"}]` 
               }
             ]
           }]
         })
       });
 
+      // DIAGNOSTICA: Se il server risponde male, leggiamo il perché
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(`Server Error (${res.status}): ${errorData.error || "Unknown"}`);
+      }
+
       const d = await res.json();
+      
+      if (!d.content || !d.content[0]) {
+        throw new Error("Risposta AI vuota o non valida");
+      }
+
       const parsed = JSON.parse(d.content[0].text.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
 
       if (type === "r") {
         const newR = { ...routines, [`${sc.id}|${sp}`]: parsed };
-        setR(newR); localStorage.setItem("k_r", JSON.stringify(newR));
+        setR(newR); 
+        localStorage.setItem("k_r", JSON.stringify(newR));
       } else {
         const key = `${sc.id}|${sp}|${sd}`;
         const newL = { ...lessons, [key]: parsed };
-        setL(newL); localStorage.setItem("k_l", JSON.stringify(newL));
+        setL(newL); 
+        localStorage.setItem("k_l", JSON.stringify(newL));
       }
-      setSs("✅ Caricato con successo!");
-    } catch (e) { setSs("❌ Errore nel caricamento."); }
-    setTimeout(() => setScn(false), 3000);
+      setSs("✅ Completato!");
+    } catch (e) {
+      console.error("DEBUG ERROR:", e);
+      setSs(`❌ ${e.message}`); // Qui vedremo l'errore specifico sullo schermo
+    }
+    setTimeout(() => setScn(false), 6000); // Messaggio visibile per 6 secondi per leggerlo bene
   };
 
   const curR = routines[`${sc?.id}|${sp}`];
@@ -128,7 +157,7 @@ export default function App() {
 
           <div style={{ marginTop: 25 }}>
             {curR?.[ver]?.map((r, i) => (
-              <div key={i} style={{ background: "#fff", padding: 22, marginBottom: 15, borderRadius: 20, borderLeft: "8px solid #3C3C3B", boxShadow: "0 4px 15px rgba(0,0,0,0.02)" }}>
+              <div key={i} style={{ background: "#fff", padding: 22, marginBottom: 15, borderRadius: 20, borderLeft: "8px solid #3C3C3B" }}>
                 <b>{r.name}</b> <span style={{float:"right", color:"#aaa"}}>{r.duration}'</span>
                 <p style={{ fontSize: 15, color: "#666", marginTop: 8 }}>{r.desc}</p>
               </div>
@@ -137,13 +166,12 @@ export default function App() {
               <div key={i} style={{ background: "#fff", padding: 22, marginBottom: 15, borderRadius: 20, borderLeft: `8px solid ${sc.color}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><b>{a.name}</b> <span>{a.duration}'</span></div>
                 <p style={{ fontSize: 15, color: "#666", marginTop: 8 }}>{a.desc}</p>
-                {a.target && <div style={{ marginTop: 15, padding: 12, background: "#FFFDE7", borderRadius: 12, fontSize: 13, borderLeft: "4px solid #FFD600" }}><b>Target Language:</b> {a.target}</div>}
               </div>
             ))}
           </div>
         </div>
       )}
-      {scn && <div style={{ position: "fixed", bottom: 40, left: "50%", transform: "translateX(-50%)", background: "#3C3C3B", color: "#fff", padding: "16px 32px", borderRadius: 50, zIndex: 2000, fontWeight: 800 }}>{ss}</div>}
+      {scn && <div style={{ position: "fixed", bottom: 40, left: "50%", transform: "translateX(-50%)", background: "#3C3C3B", color: "#fff", padding: "16px 32px", borderRadius: 15, zIndex: 2000, fontWeight: 800, width: "80%", textAlign: "center" }}>{ss}</div>}
     </div>
   );
 }
