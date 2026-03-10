@@ -4,29 +4,35 @@ const Anthropic = require('@anthropic-ai/sdk');
 const path = require('path');
 
 const app = express();
-// Aumentiamo il limite di peso a 50MB per accettare i tuoi PDF pesanti
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
+// DEBUG: Vediamo se la chiave viene letta (stampa solo i primi 5 caratteri per sicurezza)
+console.log("Controllo Chiave API:", process.env.ANTHROPIC_API_KEY ? `Presente (inizia con ${process.env.ANTHROPIC_API_KEY.substring(0, 5)})` : "ASSENTE!");
+
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY, // La chiave è al sicuro nel sistema
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 app.post('/api/generate', async (req, res) => {
   try {
+    console.log("Chiamata ricevuta per il modello:", req.body.model);
     const response = await anthropic.messages.create(req.body);
     res.json(response);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    // Questo ci dirà esattamente cosa dice Claude al server
+    console.error("ERRORE CLAUDE:", error.status, error.message);
+    res.status(error.status || 500).json({ 
+      error: error.message,
+      type: error.type 
+    });
   }
 });
 
-// Serve l'app React
 app.use(express.static(path.join(__dirname, 'build')));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server acceso sulla porta ${PORT}`));
