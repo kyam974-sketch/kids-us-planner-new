@@ -27,20 +27,44 @@ export default function App() {
     if (l) setL(JSON.parse(l));
   }, []);
 
+  // FUNZIONE MAGICA: Rimpicciolisce l'immagine per non far crashare Vercel
+  const compressImage = async (base64) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = `data:image/jpeg;base64,${base64}`;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200; // Ridimensioniamo a 1200px
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]); // Qualità 60% per essere leggeri
+      };
+    });
+  };
+
   const processFile = async (file, type) => {
     setScn(true);
-    setSs("Estrazione testo...");
-    
+    setSs("Compressione e invio...");
     try {
-      // Trasformiamo il file in Base64
-      const base64 = await new Promise(r => {
+      let base64 = await new Promise(r => {
         const rd = new FileReader();
         rd.onload = () => r(rd.result.split(',')[1]);
         rd.readAsDataURL(file);
       });
 
-      setSs("AI sta leggendo le colonne...");
-      
+      // Se è un'immagine, la comprimiamo
+      if (file.type.includes("image")) {
+        base64 = await compressImage(base64);
+      }
+
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,8 +73,8 @@ export default function App() {
           messages: [{
             role: "user",
             content: [
-              { type: file.type === "application/pdf" ? "document" : "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
-              { type: "text", text: `Analizza questa pagina Kids&Us (attenzione all'impaginazione a due colonne). 
+              { type: file.type === "application/pdf" ? "document" : "image", source: { type: "base64", media_type: file.type === "application/pdf" ? "application/pdf" : "image/jpeg", data: base64 } },
+              { type: "text", text: `Analizza questa pagina Kids&Us. ATTENZIONE: il testo è su DUE COLONNE, leggile separatamente. 
                 ${type === 'r' ? "Estrai Version A e Version B delle routine." : "Estrai le attività dal punto 2 in poi."}
                 Rispondi SOLO in JSON: 
                 ${type === 'r' ? "{'a': [{'name','duration','desc'}], 'b': [{'name','duration','desc'}]}" : "[{'name','duration','desc','target'}]"}` 
@@ -61,8 +85,6 @@ export default function App() {
       });
 
       const d = await res.json();
-      if (!res.ok) throw new Error(d.error || "Errore API");
-
       const txt = d.content[0].text;
       const parsed = JSON.parse(txt.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
 
@@ -79,8 +101,7 @@ export default function App() {
         setSs("Lezione pronta!");
       }
     } catch (e) {
-      console.error(e);
-      setSs("Errore. Prova uno screenshot più leggero.");
+      setSs("Errore. Prova uno screenshot.");
     }
     setTimeout(() => setScn(false), 2000);
   };
@@ -92,11 +113,11 @@ export default function App() {
     <div style={{ minHeight: "100vh", fontFamily: "'Nunito', sans-serif", background: "#FAFAF7", padding: 20 }}>
       {view === "home" && (
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <h2 style={{ fontWeight: 900, marginBottom: 20 }}>Planner Kids&Us 👋</h2>
+          <h2 style={{ fontWeight: 900, marginBottom: 20, color: "#3C3C3B" }}>Kids&Us Planner 👋</h2>
           {CS.map(c => (
-            <div key={c.id} onClick={() => { setSc(c); setV("course"); }} style={{ background: "#fff", padding: 20, marginBottom: 12, borderRadius: 18, borderLeft: `6px solid ${c.color}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 15 }}>
-              <span style={{ fontSize: 30 }}>{c.em}</span>
-              <b style={{ fontSize: 18 }}>{c.name}</b>
+            <div key={c.id} onClick={() => { setSc(c); setV("course"); }} style={{ background: "#fff", padding: 20, marginBottom: 12, borderRadius: 18, borderLeft: `6px solid ${c.color}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 15, boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
+              <span style={{ fontSize: 32 }}>{c.em}</span>
+              <b style={{ fontSize: 20 }}>{c.name}</b>
             </div>
           ))}
         </div>
@@ -105,18 +126,18 @@ export default function App() {
       {view === "course" && sc && (
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
           <button onClick={() => setV("home")} style={{ marginBottom: 20, border: "none", background: "none", fontWeight: 800, color: sc.color }}>← HOME</button>
-          <h2 style={{ color: sc.color, fontWeight: 900, marginBottom: 20 }}>{sc.name}</h2>
+          <h1 style={{ color: sc.color, fontWeight: 900, fontSize: 28, marginBottom: 20 }}>{sc.name}</h1>
           {["Story 1", "Story 2", "Story 3", "Story 4"].map(p => (
-            <div key={p} style={{ background: "#fff", padding: 15, borderRadius: 15, marginBottom: 15 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <b>{p}</b>
-                <button onClick={() => { setSp(p); fr.current.click(); }} style={{ fontSize: 11, background: routines[`${sc.id}|${p}`] ? "#E8F5E9" : "#eee", padding: "5px 10px", borderRadius: 8, border: "none" }}>
+            <div key={p} style={{ background: "#fff", padding: 15, borderRadius: 15, marginBottom: 15, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <b style={{ color: "#3C3C3B" }}>{p}</b>
+                <button onClick={() => { setSp(p); fr.current.click(); }} style={{ fontSize: 11, background: routines[`${sc.id}|${p}`] ? "#E8F5E9" : "#f0f0f0", color: routines[`${sc.id}|${p}`] ? "#2E7D32" : "#888", padding: "6px 12px", borderRadius: 8, border: "none", fontWeight: 800 }}>
                   {routines[`${sc.id}|${p}`] ? "✅ Routine OK" : "📸 Carica Routine"}
                 </button>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
                 {[...Array(10)].map((_, i) => (
-                  <button key={i} onClick={() => { setSp(p); setSd(i + 1); setV("lesson"); }} style={{ padding: 10, borderRadius: 10, border: "1px solid #eee", background: "#fdfdfd", fontWeight: 800 }}>{i + 1}</button>
+                  <button key={i} onClick={() => { setSp(p); setSd(i + 1); setV("lesson"); }} style={{ padding: 12, borderRadius: 10, border: "1px solid #eee", background: "#fdfdfd", fontWeight: 800, color: "#3C3C3B" }}>{i + 1}</button>
                 ))}
               </div>
             </div>
@@ -128,35 +149,35 @@ export default function App() {
       {view === "lesson" && (
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
           <button onClick={() => setV("course")} style={{ marginBottom: 20, border: "none", background: "none", fontWeight: 800, color: sc.color }}>← {sp}</button>
-          <div style={{ background: "#fff", padding: 25, borderRadius: 24, marginBottom: 20, textAlign: "center", border: "1px solid #eee" }}>
-             <h3 style={{ fontWeight: 900, color: sc.color, marginBottom: 15 }}>Day {sd}</h3>
-             <div style={{ display: "flex", gap: 10, marginBottom: 15 }}>
+          <div style={{ background: "#fff", padding: 25, borderRadius: 24, border: "1px solid #eee", marginBottom: 20, textAlign: "center", boxShadow: "0 8px 30px rgba(0,0,0,0.04)" }}>
+             <h3 style={{ fontWeight: 900, color: sc.color, fontSize: 22 }}>Day {sd}</h3>
+             <div style={{ display: "flex", gap: 8, margin: "15px 0" }}>
                 {["a", "b"].map(v => (
-                  <button key={v} onClick={() => { localStorage.setItem(`v|${sc.id}|${sp}`, v); setSs(v); }} style={{ flex: 1, padding: 10, borderRadius: 12, border: "none", background: ver === v ? "#3C3C3B" : "#ddd", color: "#fff", fontWeight: 700 }}>Version {v.toUpperCase()}</button>
+                  <button key={v} onClick={() => { localStorage.setItem(`v|${sc.id}|${sp}`, v); setSs(v); }} style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: ver === v ? "#3C3C3B" : "#eee", color: ver === v ? "#fff" : "#888", fontWeight: 800 }}>Version {v.toUpperCase()}</button>
                 ))}
              </div>
-             <button onClick={() => fr.current.click()} style={{ width: "100%", background: sc.color, color: "#fff", padding: "14px", borderRadius: 14, border: "none", fontWeight: 800 }}>📸 SCANSIONA LEZIONE</button>
+             <button onClick={() => fr.current.click()} style={{ width: "100%", background: sc.color, color: "#fff", padding: "16px", borderRadius: 16, border: "none", fontWeight: 800, fontSize: 15 }}>📸 SCANSIONA LEZIONE</button>
              <input type="file" ref={fr} style={{ display: "none" }} onChange={e => processFile(e.target.files[0], "l")} />
           </div>
 
           <div style={{ marginTop: 20 }}>
             {curR && curR[ver] && curR[ver].map((r, idx) => (
-              <div key={idx} style={{ background: "#fff", padding: 18, marginBottom: 12, borderRadius: 16, borderLeft: "5px solid #3C3C3B" }}>
-                <b>{r.name}</b> <span style={{float:"right"}}>{r.duration}'</span>
-                <p style={{ fontSize: 13, color: "#666", marginTop: 5 }}>{r.desc}</p>
+              <div key={idx} style={{ background: "#fff", padding: 20, marginBottom: 12, borderRadius: 18, borderLeft: "6px solid #3C3C3B", boxShadow: "0 4px 15px rgba(0,0,0,0.02)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><b>{r.name}</b> <span style={{color:"#888"}}>{r.duration}'</span></div>
+                <p style={{ fontSize: 14, color: "#666", marginTop: 8, lineHeight: "1.5" }}>{r.desc}</p>
               </div>
             ))}
             {lessons[`${sc.id}|${sp}|${sd}`]?.map((a, i) => (
-              <div key={i} style={{ background: "#fff", padding: 18, marginBottom: 10, borderRadius: 16, borderLeft: `5px solid ${sc.color}` }}>
-                <b>{a.name}</b> <span style={{float:"right"}}>{a.duration}'</span>
-                <p style={{ fontSize: 13, color: "#666", marginTop: 5 }}>{a.desc}</p>
-                {a.target && <div style={{ marginTop: 8, padding: 8, background: "#FFFDE7", borderRadius: 8, fontSize: 11 }}><b>Target:</b> {a.target}</div>}
+              <div key={i} style={{ background: "#fff", padding: 20, marginBottom: 12, borderRadius: 18, borderLeft: `6px solid ${sc.color}`, boxShadow: "0 4px 15px rgba(0,0,0,0.02)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><b>{a.name}</b> <span style={{color:sc.color, fontWeight:800}}>{a.duration}'</span></div>
+                <p style={{ fontSize: 14, color: "#666", marginTop: 8, lineHeight: "1.5" }}>{a.desc}</p>
+                {a.target && <div style={{ marginTop: 12, padding: 10, background: "#FFFDE7", borderRadius: 10, fontSize: 12, borderLeft: "3px solid #FFD600" }}><b>Target Language:</b> {a.target}</div>}
               </div>
             ))}
           </div>
         </div>
       )}
-      {scn && <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "#3C3C3B", color: "#fff", padding: "12px 24px", borderRadius: 50, zIndex: 2000 }}>{ss}</div>}
+      {scn && <div style={{ position: "fixed", bottom: 30, left: "50%", transform: "translateX(-50%)", background: "#3C3C3B", color: "#fff", padding: "14px 28px", borderRadius: 50, zIndex: 2000, fontWeight: 800, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>{ss}</div>}
     </div>
   );
 }
