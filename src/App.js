@@ -19,6 +19,7 @@ export default function App() {
   const [scn, setScn] = useState(false);
   const [ss, setSs] = useState("");
   const [isLive, setIsLive] = useState(false);
+  const [startTime, setStartTime] = useState("16:30");
   const fr = useRef(null);
 
   useEffect(() => {
@@ -28,8 +29,13 @@ export default function App() {
     if (l) setL(JSON.parse(l));
   }, []);
 
+  const save = (newL, newR) => {
+    if(newL) { setL(newL); localStorage.setItem("k_l", JSON.stringify(newL)); }
+    if(newR) { setR(newR); localStorage.setItem("k_r", JSON.stringify(newR)); }
+  };
+
   const uploadToAI = async (file, type) => {
-    setScn(true); setSs("Gemini sta analizzando i dettagli...");
+    setScn(true); setSs("Analisi profonda in corso...");
     try {
       const b64 = await new Promise(r => {
         const rd = new FileReader();
@@ -38,17 +44,13 @@ export default function App() {
       });
 
       const promptMsg = type === 'r' 
-        ? "Analizza la pagina Kids&Us. Estrai la Routine A e la Routine B. Per ogni attività scrivi: nome, durata, descrizione e materiali necessari. Rispondi SOLO JSON: { \"a\": [{\"name\",\"duration\",\"desc\",\"materials\"}], \"b\": [{\"name\",\"duration\",\"desc\",\"materials\"}] }"
-        : "Analizza questa lezione Kids&Us. Estrai tutte le attività (incluse Bonus Activities). Per ogni attività cerca il 'Target Language' (solitamente in grassetto). Rispondi SOLO JSON: [{\"name\",\"duration\",\"desc\",\"target_language\",\"materials\",\"is_bonus\"}]";
+        ? "Estrai Routine A e Routine B separatamente. Cerca i titoli in neretto per il Target Language. Rispondi SOLO JSON: { \"a\": [{\"name\",\"duration\",\"desc\",\"target\",\"materials\"}], \"b\": [{\"name\",\"duration\",\"desc\",\"target\",\"materials\"}] }"
+        : "Estrai le attività della lezione. Fondamentale: estrai il testo in GRASSETTO come 'target'. Includi materiali e bonus activities. Rispondi SOLO JSON: [{\"name\",\"duration\",\"desc\",\"target\",\"materials\",\"is_bonus\"}]";
 
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageB64: b64,
-          mimeType: file.type || "image/jpeg",
-          prompt: promptMsg
-        })
+        body: JSON.stringify({ imageB64: b64, mimeType: file.type || "image/jpeg", prompt: promptMsg })
       });
 
       const d = await res.json();
@@ -56,44 +58,58 @@ export default function App() {
       const parsed = JSON.parse(cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
 
       if (type === "r") {
-        const newR = { ...routines, [`${sc.id}|${sp}`]: parsed };
-        setR(newR); localStorage.setItem("k_r", JSON.stringify(newR));
+        save(null, { ...routines, [`${sc.id}|${sp}`]: parsed });
       } else {
-        const key = `${sc.id}|${sp}|${sd}`;
-        const newL = { ...lessons, [key]: parsed };
-        setL(newL); localStorage.setItem("k_l", JSON.stringify(newL));
+        save({ ...lessons, [`${sc.id}|${sp}|${sd}`]: parsed }, null);
       }
-      setSs("✅ Dati estratti con successo!");
+      setSs("✅ Completato!");
     } catch (e) {
       setSs(`❌ Errore: ${e.message}`);
     }
     setTimeout(() => setScn(false), 3000);
   };
 
+  const deleteLesson = () => {
+    if(window.confirm("Cancellare questa lezione?")) {
+      const newL = {...lessons};
+      delete newL[`${sc.id}|${sp}|${sd}`];
+      save(newL, null);
+    }
+  };
+
   const currentVer = sc && sp ? (localStorage.getItem(`v|${sc.id}|${sp}`) || "a") : "a";
   const curR = routines[`${sc?.id}|${sp}`]?.[currentVer] || [];
   const curL = lessons[`${sc?.id}|${sp}|${sd}`] || [];
+  const fullPlan = [...curR, ...curL];
 
-  const handlePrint = () => {
-    window.print();
+  // Calcolo Orari
+  let lastTime = startTime;
+  const planWithTimes = fullPlan.map(act => {
+    const [h, m] = lastTime.split(":").map(Number);
+    const start = lastTime;
+    const dur = parseInt(act.duration) || 5;
+    const date = new Date(0,0,0, h, m + dur);
+    lastTime = `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+    return { ...act, start, end: lastTime };
+  });
+
+  const updateAct = (idx, field, val) => {
+    const key = `${sc.id}|${sp}|${sd}`;
+    const newL = [...curL];
+    newL[idx][field] = val;
+    save({ ...lessons, [key]: newL }, null);
   };
 
   return (
-    <div className={isLive ? "live-mode" : ""} style={{ minHeight: "100vh", fontFamily: "sans-serif", background: isLive ? "#000" : "#FAFAF7", padding: isLive ? 0 : 20 }}>
-      <style>{`
-        @media print {
-          button, .no-print { display: none !important; }
-          body { background: white !important; }
-          .print-sheet { box-shadow: none !important; border: 1px solid #eee !important; }
-        }
-        .live-mode { color: white !important; }
-      `}</style>
+    <div style={{ minHeight: "100vh", background: isLive ? "#111" : "#FAFAF7", color: isLive ? "#fff" : "#333", fontFamily: 'system-ui' }}>
+      <style>{`@media print { .no-print { display: none !important; } .print-area { box-shadow:none !important; padding:0 !important; } }`}</style>
 
       {view === "home" && (
-        <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <h2 style={{ fontWeight: 900, marginBottom: 25 }}>Lesson Planner Live 🚀</h2>
+        <div style={{ maxWidth: 600, margin: "0 auto", padding: 20 }}>
+          <h2 style={{fontWeight:900}}>Kids&Us Planner Pro 🚀</h2>
+          <button onClick={() => {if(window.confirm("Vuoi resettare TUTTO?")) {localStorage.clear(); window.location.reload();}}} style={{fontSize:10, marginBottom:20}}>CANCELLA TUTTA LA CACHE</button>
           {CS.map(c => (
-            <div key={c.id} onClick={() => { setSc(c); setV("course"); }} style={{ background: "#fff", padding: 20, marginBottom: 15, borderRadius: 15, borderLeft: `8px solid ${c.color}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 15, boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
+            <div key={c.id} onClick={() => { setSc(c); setV("course"); }} style={{ background: "#fff", padding: 20, marginBottom: 15, borderRadius: 15, borderLeft: `8px solid ${c.color}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 15, color: "#333" }}>
               <span style={{ fontSize: 30 }}>{c.em}</span>
               <b style={{ fontSize: 20 }}>{c.name}</b>
             </div>
@@ -102,16 +118,14 @@ export default function App() {
       )}
 
       {view === "course" && sc && (
-        <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <button onClick={() => setV("home")} className="no-print" style={{ marginBottom: 20, border: "none", background: "none", fontWeight: "bold", color: sc.color }}>← INDIETRO</button>
+        <div style={{ maxWidth: 600, margin: "0 auto", padding: 20 }}>
+          <button onClick={() => setV("home")} style={{ border: "none", background: "none", fontWeight: "bold", color: sc.color }}>← INDIETRO</button>
           <h1 style={{ color: sc.color }}>{sc.name}</h1>
           {["Story 1", "Story 2", "Story 3", "Story 4"].map(p => (
-            <div key={p} style={{ background: "#fff", padding: 15, borderRadius: 15, marginBottom: 15 }}>
+            <div key={p} style={{ background: "#fff", padding: 15, borderRadius: 15, marginBottom: 15, color:"#333" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                 <b>{p}</b>
-                <button onClick={() => { setSp(p); fr.current.click(); }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 8, border: "1px solid #ddd" }}>
-                   📸 Carica Routine (A/B)
-                </button>
+                <button onClick={() => { setSp(p); fr.current.click(); }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 8 }}>📸 Carica Routine</button>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
                 {[...Array(10)].map((_, i) => (
@@ -125,57 +139,52 @@ export default function App() {
       )}
 
       {view === "lesson" && sc && (
-        <div style={{ maxWidth: 800, margin: "0 auto" }}>
-          <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-            <button onClick={() => setV("course")} style={{ border: "none", background: "none", fontWeight: "bold", color: sc.color }}>← {sp}</button>
-            <div>
-              <button onClick={() => setIsLive(!isLive)} style={{ marginRight: 10, padding: "8px 15px", borderRadius: 10, border: "none", background: "#333", color: "#fff" }}>{isLive ? "Esci da Live" : "Vai in Live 📺"}</button>
-              <button onClick={handlePrint} style={{ padding: "8px 15px", borderRadius: 10, border: "none", background: sc.color, color: "#fff" }}>Stampa 🖨️</button>
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: isLive ? 0 : 20 }}>
+          <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 20, padding: isLive ? 10 : 0 }}>
+            <button onClick={() => setV("course")} style={{ border: "none", background: "none", fontWeight: "bold", color: sc.color }}>← Torna a {sp}</button>
+            <div style={{display:"flex", gap:10}}>
+              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{borderRadius:8, border:"1px solid #ddd", padding:5}} />
+              <button onClick={() => setIsLive(!isLive)} style={{ background: "#333", color: "#fff", border: "none", padding: "8px 15px", borderRadius: 10 }}>{isLive ? "Esci" : "Live View"}</button>
+              <button onClick={deleteLesson} style={{ background: "#ffcdd2", border: "none", padding: "8px 15px", borderRadius: 10 }}>🗑️</button>
+              <button onClick={() => window.print()} style={{ background: sc.color, color: "#fff", border: "none", padding: "8px 15px", borderRadius: 10 }}>🖨️</button>
             </div>
           </div>
 
-          <div className="print-sheet" style={{ background: isLive ? "#111" : "#fff", padding: 30, borderRadius: 25, boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
-             <h2 style={{ color: sc.color, textAlign: "center", margin: 0 }}>{sc.name} - {sp}</h2>
-             <h4 style={{ textAlign: "center", marginTop: 5, color: "#888" }}>Day {sd}</h4>
-             
-             <div className="no-print" style={{ display: "flex", gap: 10, margin: "20px 0" }}>
+          <div className="print-area" style={{ background: isLive ? "#000" : "#fff", padding: isLive ? 10 : 30, borderRadius: isLive ? 0 : 20 }}>
+            {!isLive && (
+              <div className="no-print" style={{ display: "flex", gap: 10, marginBottom: 20 }}>
                 {["a", "b"].map(v => (
-                  <button key={v} onClick={() => { localStorage.setItem(`v|${sc.id}|${sp}`, v); window.location.reload(); }} style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: currentVer === v ? "#333" : "#eee", color: currentVer === v ? "#fff" : "#888", fontWeight: "bold" }}>VERSION {v.toUpperCase()}</button>
+                  <button key={v} onClick={() => { localStorage.setItem(`v|${sc.id}|${sp}`, v); window.location.reload(); }} style={{ flex: 1, padding: 10, borderRadius: 10, border: "none", background: currentVer === v ? sc.color : "#eee", color: currentVer === v ? "#fff" : "#888", fontWeight: "bold" }}>VERSION {v.toUpperCase()}</button>
                 ))}
-             </div>
+              </div>
+            )}
 
-             <div className="no-print" style={{ marginBottom: 20 }}>
-                <button onClick={() => fr.current.click()} style={{ width: "100%", background: sc.color, color: "#fff", padding: 15, borderRadius: 15, border: "none", fontWeight: "bold" }}>📸 SCANSIONA PAGINA LEZIONE</button>
-                <input type="file" ref={fr} style={{ display: "none" }} onChange={e => uploadToAI(e.target.files[0], "l")} />
-             </div>
+            <h2 style={{margin:0, color:sc.color}}>{sc.name} - Day {sd}</h2>
+            <p style={{marginTop:0, opacity:0.6}}>{sp} - Version {currentVer.toUpperCase()}</p>
 
-             {/* SEZIONE ROUTINE */}
-             <div style={{ marginBottom: 30 }}>
-                <h5 style={{ borderBottom: "2px solid #eee", paddingBottom: 5, color: sc.color }}>ROUTINE (Version {currentVer.toUpperCase()})</h5>
-                {curR.map((r, i) => (
-                  <div key={i} style={{ marginBottom: 15, padding: 10, borderLeft: "4px solid #333" }}>
-                    <b>{r.name} ({r.duration}')</b>
-                    <p style={{ margin: "5px 0", fontSize: 14 }}>{r.desc}</p>
-                    {r.materials && <small style={{ color: "#888" }}>🛠️ {r.materials}</small>}
+            <div style={{ marginTop: 20 }}>
+              {planWithTimes.map((a, i) => (
+                <div key={i} style={{ display: "flex", gap: 15, marginBottom: 15, borderBottom: "1px solid #eee", paddingBottom: 15 }}>
+                  <div style={{ minWidth: 60, fontWeight: "bold", color: sc.color, fontSize: 14 }}>
+                    {a.start}<br/><span style={{fontSize:10, opacity:0.5}}>{a.end}</span>
                   </div>
-                ))}
-             </div>
-
-             {/* SEZIONE LEZIONE */}
-             <div>
-                <h5 style={{ borderBottom: "2px solid #eee", paddingBottom: 5, color: sc.color }}>ACTIVITIES</h5>
-                {curL.map((a, i) => (
-                  <div key={i} style={{ marginBottom: 20, padding: 15, borderRadius: 12, background: a.is_bonus ? "#fffde7" : "transparent", border: a.is_bonus ? "1px dashed #fbc02d" : "none", borderLeft: a.is_bonus ? "8px solid #fbc02d" : `8px solid ${sc.color}` }}>
+                  <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <b>{a.is_bonus && "⭐ "} {a.name}</b>
+                      <b contentEditable onBlur={e => updateAct(i, 'name', e.target.innerText)} style={{outline:"none"}}>{a.name}</b>
                       <span>{a.duration}'</span>
                     </div>
-                    {a.target_language && <div style={{ background: "#f0f0f0", padding: "5px 10px", borderRadius: 5, margin: "8px 0", fontSize: 13, fontWeight: "bold", color: "#333" }}>🎯 {a.target_language}</div>}
-                    <p style={{ fontSize: 14, marginTop: 5 }}>{a.desc}</p>
-                    {a.materials && <small style={{ color: "#888" }}>📦 {a.materials}</small>}
+                    {a.target && <div style={{ fontSize: 12, background: isLive ? "#222" : "#f5f5f5", padding: "4px 8px", borderRadius: 5, marginTop: 5, fontWeight: "bold" }}>🎯 {a.target}</div>}
+                    <p contentEditable onBlur={e => updateAct(i, 'desc', e.target.innerText)} style={{ fontSize: 14, margin: "5px 0", outline:"none", opacity: 0.9 }}>{a.desc}</p>
+                    {a.materials && <div style={{fontSize:11, opacity:0.6}}>🛠️ {a.materials}</div>}
                   </div>
-                ))}
-             </div>
+                </div>
+              ))}
+            </div>
+
+            <button className="no-print" onClick={() => fr.current.click()} style={{ width: "100%", background: "#eee", border: "2px dashed #ccc", padding: 20, borderRadius: 15, marginTop: 20, cursor: "pointer" }}>
+               📸 AGGIUNGI / AGGIORNA PAGINA LEZIONE
+            </button>
+            <input type="file" ref={fr} style={{ display: "none" }} onChange={e => uploadToAI(e.target.files[0], "l")} />
           </div>
         </div>
       )}
