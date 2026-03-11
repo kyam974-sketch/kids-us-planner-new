@@ -27,7 +27,7 @@ export default function App() {
   const fr = useRef(null);
 
   useEffect(() => {
-    const l = localStorage.getItem("k_l_v5");
+    const l = localStorage.getItem("k_l_v7");
     if (l) setL(JSON.parse(l));
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
@@ -36,20 +36,19 @@ export default function App() {
   const saveState = (newL) => {
     setHistory([...history, lessons]);
     setL(newL);
-    localStorage.setItem("k_l_v5", JSON.stringify(newL));
+    localStorage.setItem("k_l_v7", JSON.stringify(newL));
   };
 
   const undo = () => {
     if (history.length > 0) {
-      const prev = history[history.length - 1];
-      setL(prev);
+      setL(history[history.length - 1]);
       setHistory(history.slice(0, -1));
       setSs("⏪ Undo!");
     }
   };
 
   const uploadToAI = async (files) => {
-    setScn(true); setSs("AI Scanning... Verbatim English");
+    setScn(true); setSs("Scanning: Verbatim Audio & Target...");
     try {
       const b64 = await new Promise(r => {
         const rd = new FileReader();
@@ -58,9 +57,10 @@ export default function App() {
       });
 
       const promptMsg = `Extract Kids&Us lesson. Use ONLY English.
-      Copy Target Language EXACTLY. Use [T] for Teacher and [K] for Kids.
+      CRITICAL: Find "Track #" or "Audio" and put it in 'audio' field for THAT activity.
+      Target Language: Verbatim copy. Use [T] for Teacher, [K] for Kids.
       If Bonus/Optional, set is_bonus: true.
-      JSON: [{"name","duration","desc","target","materials","is_bonus"}]`;
+      JSON: [{"name","duration","audio","desc","target","materials","is_bonus"}]`;
 
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -73,17 +73,15 @@ export default function App() {
       const parsed = JSON.parse(cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
 
       saveState({ ...lessons, [`${sc.id}|${sp}|${sd}`]: parsed });
-      setSs("✅ Updated!");
+      setSs("✅ Activities & Audio Synced!");
     } catch (e) { setSs(`❌ Error: ${e.message}`); }
     setTimeout(() => setScn(false), 3000);
   };
 
   const addActivity = (item = null) => {
     const key = `${sc.id}|${sp}|${sd}`;
-    const newAct = item ? {...item} : { name: "New Activity", duration: 5, desc: "Description", target: "[T] ... [K] ...", materials: "", is_bonus: false };
-    const newL = [...(lessons[key] || []), newAct];
-    saveState({ ...lessons, [key]: newL });
-    setSs(item ? "📋 Activity Pasted!" : "➕ Activity Added!");
+    const newAct = item ? {...item} : { name: "New", duration: 5, audio: "", desc: "", target: "[T] ... [K] ...", materials: "", is_bonus: false };
+    saveState({ ...lessons, [key]: [...(lessons[key] || []), newAct] });
   };
 
   const updateAct = (idx, field, val) => {
@@ -109,23 +107,16 @@ export default function App() {
     return { ...a, start, end: lastTime, id: i };
   });
 
-  const getTimelinePos = () => {
-    const [h, m] = startTime.split(":").map(Number);
-    const s = new Date(); s.setHours(h, m, 0);
-    return ((now - s) / 60000) * 15;
-  };
-
   return (
-    <div style={{ minHeight: "100vh", background: isLive ? "#000" : "#F1F2F6", color: isLive ? "#FFF" : "#2F3542", fontFamily: "sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: isLive ? "#000" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily: 'sans-serif' }}>
       <style>{`
         .t-phrase { color: #27AE60; display: block; }
         .k-phrase { color: #2980B9; display: block; margin-top: 4px; }
-        .marker { position: absolute; left: 0; right: 0; border-top: 3px solid #E74C3C; z-index: 50; }
-        [contenteditable] { outline: none; padding: 2px; border-radius: 4px; transition: 0.2s; }
-        [contenteditable]:hover { background: rgba(0,0,0,0.05); }
+        .marker { position: absolute; left: 0; right: 0; border-top: 3px solid #FF7675; z-index: 50; }
+        [contenteditable]:hover { background: rgba(0,0,0,0.05); border-radius: 4px; }
       `}</style>
 
-      {!isLive && view === "home" && (
+      {view === "home" && (
         <div style={{ maxWidth: 800, margin: "0 auto", padding: 40 }}>
           <h1 style={{textAlign:"center", fontWeight:900}}>Kids&Us Master Planner 🎓</h1>
           <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:20}}>
@@ -142,7 +133,7 @@ export default function App() {
       {view === "course" && (
         <div style={{ maxWidth: 650, margin: "0 auto", padding: 25 }}>
           <button onClick={() => setV("home")} style={{background:"none", border:"none", fontWeight:900, color:sc.color}}>← BACK</button>
-          <h1 style={{color:sc.color, fontSize:40}}>{sc.name}</h1>
+          <h1 style={{color:sc.color}}>{sc.name}</h1>
           {["Story 1", "Story 2", "Story 3", "Story 4"].map(p => (
             <div key={p} style={{ background: "#fff", padding: 20, borderRadius: 25, marginBottom: 15, color:"#333" }}>
               <b>{p}</b>
@@ -163,26 +154,26 @@ export default function App() {
             <div style={{display:"flex", gap:10}}>
               <button onClick={undo} style={{background:"#f1f2f6", border:"none", borderRadius:10, padding:"0 15px", fontWeight:800}}>UNDO ⏪</button>
               <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{borderRadius:8, border:"none", padding:10, fontWeight:900, background:"#F1F2F6"}} />
-              <button onClick={() => setIsLive(!isLive)} style={{ background: "#2ED573", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 12, fontWeight:800 }}>{isLive ? "EDIT" : "LIVE ▶️"}</button>
+              <button onClick={() => setIsLive(!isLive)} style={{ background: "#27AE60", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 12, fontWeight:800 }}>{isLive ? "EDIT" : "LIVE ▶️"}</button>
               <button onClick={() => window.print()} style={{ background: "#2F3542", color: "#fff", border: "none", borderRadius: 12, padding: "0 20px" }}>🖨️ PRINT</button>
             </div>
           </div>
 
-          <div style={{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35, position: "relative", boxShadow: isLive ? "none" : "0 10px 40px rgba(0,0,0,0.05)" }}>
-            {isLive && <div className="marker" style={{ top: 150 + getTimelinePos() }} />}
+          <div style={{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35, position: "relative" }}>
+            {isLive && <div className="marker" style={{ top: 150 + (((now - (new Date().setHours(...startTime.split(":")))) / 60000) * 15) }} />}
             
-            <h1 style={{color:sc.color, margin:0, fontSize: 35}}>{sc.name} - Day {sd}</h1>
-            <div style={{fontWeight:900, color: totalMinutes > sc.limit ? "#FF4757" : "#2ED573", fontSize: 18, marginTop: 5}}>
+            <h1 style={{color:sc.color, margin:0}}>{sc.name} - Day {sd}</h1>
+            <div style={{fontWeight:900, color: totalMinutes > sc.limit ? "#D63031" : "#00B894", fontSize: 18}}>
               TOTAL: {totalMinutes} / {sc.limit} min
             </div>
 
-            {/* CHECKLIST MATERIALS */}
+            {/* MATERIAL CHECKLIST (No Audio) */}
             {!isLive && (
               <div style={{background:"#F8F9FA", padding:20, borderRadius:20, margin:"25px 0", border:"1px solid #E9ECEF"}}>
-                <b style={{fontSize:11, color:"#A4B0BE", letterSpacing:1.5}}>PREP CHECKLIST</b>
-                <div style={{display:"flex", flexWrap:"wrap", gap:10, marginTop:12}}>
-                  {Array.from(new Set(curL.map(a => a.materials).filter(m => m && !m.toLowerCase().includes("audio")).join(", ").split(", "))).map((m, i) => (
-                    <label key={i} style={{fontSize:13, fontWeight:700, display:"flex", alignItems:"center", gap:7, background:"#FFF", padding:"8px 12px", borderRadius:10, border:"1px solid #DEE2E6"}}>
+                <b style={{fontSize:11, color:"#A4B0BE", letterSpacing:1}}>MATERIALS CHECKLIST:</b>
+                <div style={{display:"flex", flexWrap:"wrap", gap:10, marginTop:10}}>
+                  {Array.from(new Set(curL.map(a => a.materials).filter(m => m && !m.toLowerCase().includes("audio") && !m.toLowerCase().includes("track")).join(", ").split(", "))).map((m, i) => (
+                    <label key={i} style={{fontSize:13, fontWeight:700, background:"#FFF", padding:"5px 10px", borderRadius:8, border:"1px solid #DDD"}}>
                       <input type="checkbox" /> {m.trim()}
                     </label>
                   ))}
@@ -194,8 +185,7 @@ export default function App() {
               {plan.map((a, i) => (
                 <div key={i} style={{ display: "flex", gap: 30, paddingBottom: 40, borderLeft: `8px solid ${sc.color}`, paddingLeft: 30, position:"relative" }}>
                   <div style={{ minWidth: 90, fontWeight: 900, color: sc.color, fontSize: 22 }}>
-                    <div>{a.start}</div>
-                    <div style={{fontSize:12, opacity:0.3}}>{a.end}</div>
+                    {a.start}<br/><span style={{fontSize:12, opacity:0.3}}>{a.end}</span>
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -203,13 +193,17 @@ export default function App() {
                       {!isLive && (
                         <div style={{display:"flex", gap:8}}>
                           <button onClick={() => {setClipboard(a); setSs("📋 Copied!");}} style={{border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5}}>COPY</button>
+                          <input type="text" placeholder="Audio" value={a.audio} onChange={e => updateAct(i, 'audio', e.target.value)} style={{width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11}} />
                           <input type="number" value={a.duration} onChange={e => updateAct(i, 'duration', e.target.value)} style={{width:40, border:"none", background:"#EEE", borderRadius:5, textAlign:"center", fontWeight:900}} />
                           <button onClick={() => { const nl = [...curL]; nl.splice(i,1); saveState({...lessons, [`${sc.id}|${sp}|${sd}`]: nl}); }} style={{border:"none", background:"none", fontSize:20}}>✕</button>
                         </div>
                       )}
                     </div>
+                    {/* AUDIO TRACK VISIBILE DENTRO ATTIVITÀ */}
+                    {a.audio && <div style={{background: "#FBC02D", color: "#000", display: "inline-block", padding: "2px 8px", borderRadius: 5, fontSize: 13, fontWeight: 900, margin: "5px 0"}}>🎵 {a.audio}</div>}
+                    
                     {a.target && (
-                      <div className="target-box" style={{ background: isLive ? "#111" : "#F1F2F6", padding: 12, borderRadius: 10, margin: "10px 0", fontWeight: 700 }} contentEditable onBlur={e => updateAct(i, 'target', e.target.innerText)}>
+                      <div className="target-box" style={{ background: isLive ? "#111" : "#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }} contentEditable onBlur={e => updateAct(i, 'target', e.target.innerText)}>
                         {a.target.split("[K]").map((part, idx) => (
                           <span key={idx} className={idx === 0 ? "t-phrase" : "k-phrase"}>
                             {part.replace("[T]", "").replace("[K]", "").trim()}
@@ -217,23 +211,20 @@ export default function App() {
                         ))}
                       </div>
                     )}
-                    <p style={{ fontSize: isLive ? 20 : 16, lineHeight: 1.6, margin: "10px 0" }} contentEditable onBlur={e => updateAct(i, 'desc', e.target.innerText)}>{a.desc}</p>
+                    <p style={{ fontSize: isLive ? 20 : 16, margin: "10px 0" }} contentEditable onBlur={e => updateAct(i, 'desc', e.target.innerText)}>{a.desc}</p>
                     <div style={{fontSize:12, fontWeight:700, color: sc.color}} contentEditable onBlur={e => updateAct(i, 'materials', e.target.innerText)}>🛠️ {a.materials}</div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* BONUS SECTION */}
             {bonusActs.length > 0 && (
               <div style={{marginTop:50, padding:35, background: isLive ? "#111" : "#FFF9DB", borderRadius:35, border: "3px dashed #FAB005"}}>
                 <b style={{color:"#F08C00", fontSize:18}}>⭐ BONUS ACTIVITIES</b>
                 {bonusActs.map((b, i) => (
                   <div key={i} style={{marginTop:20, borderBottom: "1px solid #FFE58F", paddingBottom: 15}}>
-                    <div style={{display:"flex", justifyContent:"space-between"}}>
-                      <b style={{fontSize:22}} contentEditable onBlur={e => updateAct(plan.length + i, 'name', e.target.innerText)}>{b.name}</b>
-                      {!isLive && <button onClick={() => { const nl = [...curL]; nl.splice(plan.length + i, 1); saveState({...lessons, [`${sc.id}|${sp}|${sd}`]: nl}); }} style={{border:"none", background:"none"}}>✕</button>}
-                    </div>
+                    <b style={{fontSize:22}} contentEditable onBlur={e => updateAct(plan.length + i, 'name', e.target.innerText)}>{b.name}</b>
+                    {b.audio && <div style={{color:"#FBC02D", fontWeight:900, margin:"5px 0"}}>🎵 {b.audio}</div>}
                     <p style={{fontSize:16}} contentEditable onBlur={e => updateAct(plan.length + i, 'desc', e.target.innerText)}>{b.desc}</p>
                     <div style={{fontSize:12, fontWeight:700}} contentEditable onBlur={e => updateAct(plan.length + i, 'materials', e.target.innerText)}>🛠️ {b.materials}</div>
                   </div>
@@ -243,9 +234,9 @@ export default function App() {
 
             {!isLive && (
               <div style={{marginTop:40, display:"flex", gap:10}}>
-                <button onClick={() => fr.current.click()} style={{ flex: 4, background: "#F1F2F6", border: "3px dashed #CCC", padding: 30, borderRadius: 25, fontWeight:900, cursor:"pointer" }}>📸 SCAN LESSON</button>
-                <button onClick={() => addActivity()} style={{ flex: 1, background: sc.color, color: "#fff", border: "none", borderRadius: 25, fontSize: 35, cursor:"pointer" }}>+</button>
-                {clipboard && <button onClick={() => addActivity(clipboard)} style={{ flex: 1.5, background: "#34495E", color: "#fff", border: "none", borderRadius: 25, fontSize: 12, fontWeight: 900 }}>PASTE ACTIVITY</button>}
+                <button onClick={() => fr.current.click()} style={{ flex: 4, background: "#F1F2F6", border: "3px dashed #CCC", padding: 30, borderRadius: 25, fontWeight:900 }}>📸 SCAN LESSON</button>
+                <button onClick={() => addActivity()} style={{ flex: 1, background: sc.color, color: "#fff", border: "none", borderRadius: 25, fontSize: 35 }}>+</button>
+                {clipboard && <button onClick={() => addActivity(clipboard)} style={{ flex: 1.5, background: "#34495E", color: "#fff", border: "none", borderRadius: 25, fontSize: 10, fontWeight: 900 }}>PASTE ACT.</button>}
                 <input type="file" ref={fr} style={{ display: "none" }} onChange={e => uploadToAI(e.target.files)} />
               </div>
             )}
@@ -256,4 +247,3 @@ export default function App() {
     </div>
   );
 }
-
