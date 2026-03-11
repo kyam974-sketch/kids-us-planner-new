@@ -17,49 +17,46 @@ export default function App() {
   const [sp, setSp] = useState("");
   const [sd, setSd] = useState(null);
   const [lessons, setL] = useState({});
+  const [library, setLib] = useState({});
   const [scn, setScn] = useState(false);
   const [ss, setSs] = useState("");
   const [isLive, setIsLive] = useState(false);
   const [startTime, setStartTime] = useState("16:30");
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [now, setNow] = useState(new Date());
   const fr = useRef(null);
 
   useEffect(() => {
-    const l = localStorage.getItem("k_l_v2");
+    const l = localStorage.getItem("k_l_v3");
+    const lib = localStorage.getItem("k_lib");
     if (l) setL(JSON.parse(l));
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    if (lib) setLib(JSON.parse(lib));
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  const save = (newL) => {
-    setL(newL);
-    localStorage.setItem("k_l_v2", JSON.stringify(newL));
+  const save = (newL, newLib) => {
+    if(newL) { setL(newL); localStorage.setItem("k_l_v3", JSON.stringify(newL)); }
+    if(newLib) { setLib(newLib); localStorage.setItem("k_lib", JSON.stringify(newLib)); }
   };
 
   const uploadToAI = async (files) => {
-    setScn(true); setSs("AI Analyzing Files (English Only)...");
+    setScn(true); setSs("Extracting VERBATIM Target Language...");
     try {
-      const parts = await Promise.all(Array.from(files).map(async f => {
-        const b64 = await new Promise(r => {
-          const rd = new FileReader();
-          rd.onload = () => r(rd.result.split(',')[1]);
-          rd.readAsDataURL(f);
-        });
-        return { inlineData: { data: b64, mimeType: f.type || "image/jpeg" } };
-      }));
+      const b64 = await new Promise(r => {
+        const rd = new FileReader();
+        rd.onload = () => r(rd.result.split(',')[1]);
+        rd.readAsDataURL(files[0]);
+      });
 
-      const promptMsg = `Analyze these Kids&Us lesson/routine pages. 
-      1. Use ONLY English. 
-      2. Extract all activities (Routine, Main, Bonus). 
-      3. For 'target', use a theater script style (e.g., Teacher: '...' / Kids: '...'). 
-      4. If an activity is 'Bonus' or 'Optional', set is_bonus: true.
-      5. Do not include 'Audio tracks' in materials.
+      const promptMsg = `Extract Kids&Us lesson activities. 
+      IMPORTANT: Copy Target Language EXACTLY as written in quotes. 
+      Format target as: "[T] (expression) [K] (expression)". 
       Return ONLY JSON: [{"name","duration","desc","target","materials","is_bonus"}]`;
 
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageB64: parts[0].inlineData.data, mimeType: parts[0].inlineData.mimeType, prompt: promptMsg }) 
+        body: JSON.stringify({ imageB64: b64, mimeType: files[0].type || "image/jpeg", prompt: promptMsg }) 
       });
 
       const d = await res.json();
@@ -67,68 +64,58 @@ export default function App() {
       const parsed = JSON.parse(cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
 
       save({ ...lessons, [`${sc.id}|${sp}|${sd}`]: parsed });
-      setSs("✅ Lesson Updated!");
-    } catch (e) { setSs(`❌ Error: ${e.message}`); }
+      setSs("✅ Content Synced!");
+    } catch (e) { setSs(`❌ AI Error: ${e.message}`); }
     setTimeout(() => setScn(false), 3000);
   };
 
-  const addActivity = () => {
+  const copyToLibrary = () => {
     const key = `${sc.id}|${sp}|${sd}`;
-    const newL = [...(lessons[key] || []), { name: "New Activity", duration: 5, desc: "", target: "", materials: "", is_bonus: false }];
-    save({ ...lessons, [key]: newL });
+    save(null, { ...library, [sc.id]: lessons[key] });
+    setSs("📁 Saved to Course Library!");
   };
 
-  const deleteAct = (idx) => {
+  const pasteFromLibrary = () => {
     const key = `${sc.id}|${sp}|${sd}`;
-    const newL = [...(lessons[key] || [])];
-    newL.splice(idx, 1);
-    save({ ...lessons, [key]: newL });
-  };
-
-  const clearDay = () => {
-    if(window.confirm("Clear all data for this day?")) {
-      const newL = {...lessons};
-      delete newL[`${sc.id}|${sp}|${sd}`];
-      save(newL);
+    if (library[sc.id]) {
+      save({ ...lessons, [key]: library[sc.id] });
+      setSs("📋 Library Content Pasted!");
     }
   };
 
   const curL = lessons[`${sc?.id}|${sp}|${sd}`] || [];
-  const normalActs = curL.filter(a => !a.is_bonus || sc.type === "baby");
-  const bonusActs = curL.filter(a => a.is_bonus && sc.type !== "baby");
-
   let totalMinutes = 0;
   let lastTime = startTime;
-  const planWithTimes = normalActs.map((act, i) => {
-    const dur = parseInt(act.duration) || 0;
+  
+  const plan = curL.map((a, i) => {
+    const dur = parseInt(a.duration) || 0;
     const [h, m] = lastTime.split(":").map(Number);
-    const startStr = lastTime;
-    const startDate = new Date(); startDate.setHours(h, m, 0);
-    const endDate = new Date(startDate.getTime() + dur * 60000);
-    lastTime = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    totalMinutes += dur;
-    return { ...act, start: startStr, end: lastTime, startTimeObj: startDate, endTimeObj: endDate };
+    const start = lastTime;
+    const date = new Date(); date.setHours(h, m + dur);
+    lastTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (!a.is_bonus || sc.type === "baby") totalMinutes += dur;
+    return { ...a, start, end: lastTime, id: i };
   });
 
   const getTimelinePos = () => {
-    if (!isLive) return -1;
     const [h, m] = startTime.split(":").map(Number);
     const s = new Date(); s.setHours(h, m, 0);
-    const diff = (currentTime - s) / 60000;
-    return diff * 15; // 15px per minute
+    return ((now - s) / 60000) * 15;
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: isLive ? "#000" : "#F8F9FA", color: isLive ? "#FFF" : "#333", fontFamily: 'Inter, system-ui' }}>
+    <div style={{ minHeight: "100vh", background: isLive ? "#000" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436" }}>
       <style>{`
-        .live-line { position: absolute; left: 0; right: 0; border-top: 3px solid #FF4757; z-index: 100; pointer-events: none; transition: top 1s linear; }
-        .live-line::after { content: 'NOW'; position: absolute; right: 10px; top: -12px; background: #FF4757; color: white; font-size: 10px; padding: 2px 5px; border-radius: 4px; }
-        @media print { .no-print { display: none !important; } }
+        .target-line { margin: 10px 0; padding: 10px; border-radius: 8px; font-weight: bold; line-height: 1.6; }
+        .t-phrase { color: #00B894; display: block; }
+        .k-phrase { color: #0984E3; display: block; margin-top: 5px; }
+        .live-marker { position: absolute; left: 0; right: 0; border-top: 3px solid #FF7675; z-index: 10; transition: 1s; }
+        @media print { .no-print { display: none !important; } .sheet { padding: 0 !important; box-shadow: none !important; } }
       `}</style>
 
       {!isLive && view === "home" && (
         <div style={{ maxWidth: 800, margin: "0 auto", padding: 40 }}>
-          <h1 style={{textAlign:"center", fontWeight:900}}>Kids&Us Planner 🍎</h1>
+          <h1 style={{textAlign:"center", fontWeight:900}}>Kids&Us Audit-Ready Planner 🍎</h1>
           <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:20}}>
             {CS.map(c => (
               <div key={c.id} onClick={() => { setSc(c); setV("course"); }} style={{ background: "#fff", padding: 30, borderRadius: 25, borderBottom: `8px solid ${c.color}`, cursor: "pointer", textAlign:"center", color:"#333" }}>
@@ -141,8 +128,8 @@ export default function App() {
       )}
 
       {view === "course" && (
-        <div style={{ maxWidth: 600, margin: "0 auto", padding: 20 }}>
-          <button onClick={() => setV("home")} style={{background:"none", border:"none", fontWeight:900, color:sc.color}}>← BACK</button>
+        <div style={{ maxWidth: 600, margin: "0 auto", padding: 25 }}>
+          <button onClick={() => setV("home")} style={{background:"none", border:"none", fontWeight:900, color:sc.color}}>← COURSES</button>
           <h1 style={{color:sc.color}}>{sc.name}</h1>
           {["Story 1", "Story 2", "Story 3", "Story 4"].map(p => (
             <div key={p} style={{ background: "#fff", padding: 20, borderRadius: 25, marginBottom: 15, color:"#333" }}>
@@ -158,56 +145,70 @@ export default function App() {
       )}
 
       {view === "lesson" && (
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: isLive ? 0 : 25 }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: isLive ? 0 : 30 }}>
           <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 20, background: isLive ? "#111" : "#fff", padding: 15, borderRadius: 15 }}>
-            <button onClick={() => {setIsLive(false); setV("course")}} style={{ color: sc.color, fontWeight: 900, border: "none", background:"none" }}>← EXIT</button>
+            <button onClick={() => {setIsLive(false); setV("course")}} style={{ color: sc.color, fontWeight: 900, border: "none", background:"none" }}>← BACK</button>
             <div style={{display:"flex", gap:10}}>
-              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{borderRadius:8, border:"none", padding:5, fontWeight:900}} />
-              <button onClick={() => setIsLive(!isLive)} style={{ background: "#2ED573", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 12, fontWeight:800 }}>{isLive ? "EDIT MODE" : "GO LIVE ▶️"}</button>
-              {!isLive && <button onClick={clearDay} style={{ background: "#FF4757", color: "#fff", border: "none", borderRadius: 12, padding: "0 15px" }}>🗑️</button>}
+              <button onClick={pasteFromLibrary} style={{background:"#f1f2f6", border:"none", borderRadius:10, padding:"0 10px"}}>📋 Paste Library</button>
+              <button onClick={copyToLibrary} style={{background:"#f1f2f6", border:"none", borderRadius:10, padding:"0 10px"}}>📁 Save Library</button>
+              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{borderRadius:8, border:"none", padding:10, fontWeight:900, background:"#EEE"}} />
+              <button onClick={() => setIsLive(!isLive)} style={{ background: "#00B894", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 12, fontWeight:800 }}>{isLive ? "EDIT" : "LIVE"}</button>
+              <button onClick={() => window.print()} style={{ background: "#2D3436", color: "#fff", border: "none", borderRadius: 12, padding: "0 15px" }}>🖨️</button>
             </div>
           </div>
 
-          <div style={{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 40, borderRadius: isLive ? 0 : 30, position: "relative" }}>
-            {isLive && <div className="live-line" style={{ top: 120 + getTimelinePos() }} />}
+          <div className="sheet" style={{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35, position: "relative" }}>
+            {isLive && <div className="live-marker" style={{ top: 150 + getTimelinePos() }} />}
             
             <h1 style={{color:sc.color, margin:0}}>{sc.name} - Day {sd}</h1>
-            <p style={{opacity:0.5}}>{totalMinutes} / {sc.limit} min</p>
+            <p style={{fontWeight:900, color: totalMinutes > sc.limit ? "#D63031" : "#00B894"}}>
+              TIME: {totalMinutes} / {sc.limit} min
+            </p>
+
+            {/* MATERIAL CHECKLIST */}
+            {!isLive && (
+              <div style={{background:"#F9F9F9", padding:20, borderRadius:20, margin:"20px 0", border:"1px solid #EEE"}}>
+                <b style={{fontSize:12, color:"#AAA"}}>PREP CHECKLIST</b>
+                <div style={{display:"flex", flexWrap:"wrap", gap:10, marginTop:10}}>
+                  {Array.from(new Set(plan.map(a => a.materials).filter(m => m && !m.toLowerCase().includes("audio")).join(", ").split(", "))).map((m, i) => (
+                    <label key={i} style={{fontSize:13, fontWeight:600, display:"flex", alignItems:"center", gap:5}}>
+                      <input type="checkbox" /> {m.trim()}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div style={{ marginTop: 30 }}>
-              {planWithTimes.map((a, i) => (
-                <div key={i} style={{ display: "flex", gap: 20, marginBottom: 0, paddingBottom: 20, borderLeft: `5px solid ${sc.color}`, paddingLeft: 20, minHeight: a.duration * 15 }}>
-                  <div style={{ minWidth: 70, fontWeight: 900, color: sc.color }}>{a.start}</div>
+              {plan.map((a, i) => (
+                <div key={i} style={{ display: "flex", gap: 25, paddingBottom: 30, borderLeft: `6px solid ${sc.color}`, paddingLeft: 25, minHeight: a.duration * 15, position:"relative" }}>
+                  <div style={{ minWidth: 80, fontWeight: 900, color: sc.color, fontSize: 20 }}>{a.start}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <b style={{fontSize: isLive ? 24 : 18}}>{a.name} ({a.duration}')</b>
-                      {!isLive && <button onClick={() => deleteAct(i)} style={{border:"none", background:"none"}}>✕</button>}
+                      <b style={{fontSize: isLive ? 26 : 20}}>{a.name} ({a.duration}')</b>
+                      {!isLive && <button onClick={() => {
+                        const newL = [...curL]; newL.splice(i, 1); save({ ...lessons, [`${sc.id}|${sp}|${sd}`]: newL });
+                      }} style={{border:"none", background:"none"}}>✕</button>}
                     </div>
-                    {a.target && <div style={{ background: isLive ? "#1A1A1A" : "#F1F2F6", padding: 10, borderRadius: 10, margin: "10px 0", fontStyle:"italic", color: isLive ? "#2ED573" : "#333" }}>{a.target}</div>}
-                    <p style={{ opacity: 0.8, fontSize: isLive ? 18 : 15 }}>{a.desc}</p>
-                    {a.materials && <small style={{opacity:0.5}}>🛠️ {a.materials}</small>}
+                    {a.target && (
+                      <div className="target-line" style={{ background: isLive ? "#111" : "#F8F9FA" }}>
+                        {a.target.split("[K]").map((part, idx) => (
+                          <span key={idx} className={idx === 0 ? "t-phrase" : "k-phrase"}>
+                            {part.replace("[T]", "").trim()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <p style={{ fontSize: isLive ? 20 : 16, opacity: 0.8 }}>{a.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            {bonusActs.length > 0 && (
-              <div style={{marginTop:40, padding:25, background: isLive ? "#111" : "#FFF9DB", borderRadius:25, border: "2px dashed #FAB005"}}>
-                <b style={{color:"#FAB005"}}>⭐ BONUS ACTIVITIES</b>
-                {bonusActs.map((b, i) => (
-                  <div key={i} style={{marginTop:15}}>
-                    <b>{b.name}</b>
-                    <p style={{fontSize:14}}>{b.desc}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {!isLive && (
-              <div style={{marginTop:30, display:"flex", gap:10}}>
-                <button onClick={() => fr.current.click()} style={{ flex: 2, background: "#F1F2F6", border: "2px dashed #CCC", padding: 20, borderRadius: 15, fontWeight:800 }}>📸 UPLOAD PDF/PHOTOS (SELECT MULTIPLE)</button>
-                <button onClick={addActivity} style={{ flex: 1, background: sc.color, color: "#fff", border: "none", borderRadius: 15, fontSize: 30 }}>+</button>
-                <input type="file" ref={fr} multiple style={{ display: "none" }} onChange={e => uploadToAI(e.target.files)} />
+              <div style={{marginTop:30}}>
+                <button onClick={() => fr.current.click()} style={{ width: "100%", background: "#F1F2F6", border: "2px dashed #CCC", padding: 30, borderRadius: 20, fontWeight:800 }}>📸 SCAN LESSON PAGE</button>
+                <input type="file" ref={fr} style={{ display: "none" }} onChange={e => uploadToAI(e.target.files)} />
               </div>
             )}
           </div>
