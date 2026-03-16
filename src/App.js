@@ -26,15 +26,8 @@ export default function App() {
   const [startTime, setStartTime] = useState("16:30");
   const [now, setNow] = useState(new Date());
 
-  // Rileva l'indirizzo del server automaticamente per evitare errori "Failed to fetch"
-  const getApiUrl = () => {
-    return window.location.hostname === "localhost" 
-      ? "http://localhost:5000/upload" 
-      : window.location.origin.replace("3000", "5000") + "/upload";
-  };
-
   useEffect(() => {
-    const saved = localStorage.getItem("k_planner_data_v10");
+    const saved = localStorage.getItem("k_planner_data_v11");
     if (saved) setL(JSON.parse(saved));
     const auth = sessionStorage.getItem("k_auth");
     if (auth === "true") setIsAuthorized(true);
@@ -44,26 +37,26 @@ export default function App() {
 
   const saveAll = (data) => {
     setL(data);
-    localStorage.setItem("k_planner_data_v10", JSON.stringify(data));
+    localStorage.setItem("k_planner_data_v11", JSON.stringify(data));
   };
 
   const downloadBackup = () => {
     const dataStr = JSON.stringify(lessons);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', `backup_planner_${new Date().toISOString().slice(0,10)}.json`);
-    linkElement.click();
+    const link = document.createElement('a');
+    link.setAttribute('href', dataUri);
+    link.setAttribute('download', `backup_planner_${new Date().toISOString().slice(0,10)}.json`);
+    link.click();
   };
 
   const importBackup = (e) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = (ev) => {
       try {
-        const json = JSON.parse(event.target.result);
+        const json = JSON.parse(ev.target.result);
         saveAll(json);
-        alert("Backup ripristinato con successo!");
-      } catch (err) { alert("File di backup non valido."); }
+        alert("Backup ripristinato!");
+      } catch (err) { alert("File non valido"); }
     };
     reader.readAsText(e.target.files[0]);
   };
@@ -195,11 +188,15 @@ export default function App() {
                     const formData = new FormData(); formData.append("file", file);
                     formData.append("course", sc.name); formData.append("day", sd);
                     try {
-                      const res = await fetch(getApiUrl(), { method: "POST", body: formData });
+                      // URL FISSO PER EVITARE ERRORI DI CALCOLO
+                      const res = await fetch("https://kids-planner.onrender.com/upload", { 
+                        method: "POST", 
+                        body: formData 
+                      });
                       if (!res.ok) throw new Error("Server error");
                       const data = await res.json();
                       saveAll({ ...lessons, [curKey]: data.activities });
-                    } catch (err) { alert("Errore caricamento: assicurati che il server sia attivo."); }
+                    } catch (err) { alert("Errore caricamento. Riprova tra un minuto."); }
                   }} />
                 </div>
               )}
