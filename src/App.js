@@ -27,7 +27,7 @@ export default function App() {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
-    const saved = localStorage.getItem("k_planner_data_v11");
+    const saved = localStorage.getItem("k_planner_data_v12");
     if (saved) setL(JSON.parse(saved));
     const auth = sessionStorage.getItem("k_auth");
     if (auth === "true") setIsAuthorized(true);
@@ -37,7 +37,7 @@ export default function App() {
 
   const saveAll = (data) => {
     setL(data);
-    localStorage.setItem("k_planner_data_v11", JSON.stringify(data));
+    localStorage.setItem("k_planner_data_v12", JSON.stringify(data));
   };
 
   const downloadBackup = () => {
@@ -188,15 +188,15 @@ export default function App() {
                     const formData = new FormData(); formData.append("file", file);
                     formData.append("course", sc.name); formData.append("day", sd);
                     try {
-                      // URL FISSO PER EVITARE ERRORI DI CALCOLO
-                      const res = await fetch("https://kids-planner.onrender.com/upload", { 
+                      // USIAMO L'INDIRIZZO NUOVO CHE FUNZIONA
+                      const res = await fetch("https://kids-us-planner-new.onrender.com/upload", { 
                         method: "POST", 
                         body: formData 
                       });
                       if (!res.ok) throw new Error("Server error");
                       const data = await res.json();
                       saveAll({ ...lessons, [curKey]: data.activities });
-                    } catch (err) { alert("Errore caricamento. Riprova tra un minuto."); }
+                    } catch (err) { alert("Errore caricamento. Riprova con uno screenshot se il PDF è pesante."); }
                   }} />
                 </div>
               )}
