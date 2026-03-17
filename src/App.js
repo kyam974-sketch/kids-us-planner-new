@@ -25,6 +25,7 @@ export default function App() {
   const [startTime, setStartTime] = useState("16:30");
   const [now, setNow] = useState(new Date());
   const fr = useRef(null);
+  const importRef = useRef(null);
 
   useEffect(() => {
     const l = localStorage.getItem("k_l_v7");
@@ -47,6 +48,39 @@ export default function App() {
     }
   };
 
+  const exportBackup = () => {
+    const data = localStorage.getItem("k_l_v7") || "{}";
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `kids-us-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setSs("💾 Backup exported!");
+    setScn(true);
+    setTimeout(() => setScn(false), 3000);
+  };
+
+  const importBackup = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        localStorage.setItem("k_l_v7", JSON.stringify(parsed));
+        setL(parsed);
+        setSs("✅ Backup restored!");
+        setScn(true);
+        setTimeout(() => setScn(false), 3000);
+      } catch {
+        setSs("❌ Invalid file.");
+        setScn(true);
+        setTimeout(() => setScn(false), 3000);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const uploadToAI = async (files) => {
     setScn(true); setSs("Scanning: Verbatim Audio & Target...");
     try {
@@ -65,7 +99,7 @@ export default function App() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageB64: b64, mimeType: files[0].type || "image/jpeg", prompt: promptMsg }) 
+        body: JSON.stringify({ imageB64: b64, mimeType: files[0].type || "image/jpeg", prompt: promptMsg })
       });
 
       const d = await res.json();
@@ -119,6 +153,18 @@ export default function App() {
       {view === "home" && (
         <div style={{ maxWidth: 800, margin: "0 auto", padding: 40 }}>
           <h1 style={{textAlign:"center", fontWeight:900}}>Kids&Us Master Planner 🎓</h1>
+
+          {/* BACKUP BAR */}
+          <div style={{ display:"flex", gap:10, justifyContent:"center", marginBottom:30 }}>
+            <button onClick={exportBackup} style={{ background:"#27AE60", color:"#fff", border:"none", borderRadius:12, padding:"10px 20px", fontWeight:900, cursor:"pointer", fontSize:15 }}>
+              💾 Export Backup
+            </button>
+            <button onClick={() => importRef.current.click()} style={{ background:"#2F3542", color:"#fff", border:"none", borderRadius:12, padding:"10px 20px", fontWeight:900, cursor:"pointer", fontSize:15 }}>
+              📂 Import Backup
+            </button>
+            <input type="file" ref={importRef} accept=".json" style={{ display:"none" }} onChange={e => { if(e.target.files[0]) importBackup(e.target.files[0]); }} />
+          </div>
+
           <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:20}}>
             {CS.map(c => (
               <div key={c.id} onClick={() => { setSc(c); setV("course"); }} style={{ background: "#fff", padding: 30, borderRadius: 25, borderBottom: `8px solid ${c.color}`, cursor: "pointer", textAlign:"center", color: "#333" }}>
@@ -161,7 +207,7 @@ export default function App() {
 
           <div style={{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35, position: "relative" }}>
             {isLive && <div className="marker" style={{ top: 150 + (((now - (new Date().setHours(...startTime.split(":")))) / 60000) * 15) }} />}
-            
+
             <h1 style={{color:sc.color, margin:0}}>{sc.name} - Day {sd}</h1>
             <div style={{fontWeight:900, color: totalMinutes > sc.limit ? "#D63031" : "#00B894", fontSize: 18}}>
               TOTAL: {totalMinutes} / {sc.limit} min
@@ -201,7 +247,7 @@ export default function App() {
                     </div>
                     {/* AUDIO TRACK VISIBILE DENTRO ATTIVITÀ */}
                     {a.audio && <div style={{background: "#FBC02D", color: "#000", display: "inline-block", padding: "2px 8px", borderRadius: 5, fontSize: 13, fontWeight: 900, margin: "5px 0"}}>🎵 {a.audio}</div>}
-                    
+
                     {a.target && (
                       <div className="target-box" style={{ background: isLive ? "#111" : "#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }} contentEditable onBlur={e => updateAct(i, 'target', e.target.innerText)}>
                         {a.target.split("[K]").map((part, idx) => (
