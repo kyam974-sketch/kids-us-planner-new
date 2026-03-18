@@ -17,6 +17,8 @@ var CS = [
 {id:"ben",name:"Ben & Brenda",color:"#4B0082",em:"\u{1F9D1}",type:"teens",limit:90}
 ];
 
+var safeStr = function(val) { return val ? String(val) : ""; };
+
 function LoginScreen() {
 var s1 = useState(""); var email = s1[0]; var setEmail = s1[1];
 var s2 = useState(""); var password = s2[0]; var setPassword = s2[1];
@@ -68,7 +70,6 @@ var sd = props.sd;
 var lessons = props.lessons;
 var onBack = props.onBack;
 var onSave = props.onSave;
-var userId = props.userId;
 
 var s1 = useState([]); var history = s1[0]; var setHistory = s1[1];
 var s2 = useState(null); var clipboard = s2[0]; var setClipboard = s2[1];
@@ -180,7 +181,7 @@ React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-ph
 
 ```
 React.createElement("div", { className:"no-print", style:{ display:"flex", justifyContent:"space-between", background: isLive ? "#111" : "#fff", padding:15, boxShadow:"0 5px 15px rgba(0,0,0,0.05)" } },
-  React.createElement("button", { onClick: onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16 } }, "\u2190 EXIT"),
+  React.createElement("button", { onClick:onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16 } }, "\u2190 EXIT"),
   React.createElement("div", { style:{ display:"flex", gap:10 } },
     React.createElement("button", { onClick:undo, style:{ background:"#f1f2f6", border:"none", borderRadius:10, padding:"0 15px", fontWeight:800 } }, "UNDO"),
     React.createElement("input", { type:"time", value:startTime, onChange:function(e){ setStartTime(e.target.value); }, style:{ borderRadius:8, border:"none", padding:10, fontWeight:900, background:"#F1F2F6" } }),
@@ -198,7 +199,7 @@ React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isL
       React.createElement("b", { style:{ fontSize:11, color:"#A4B0BE", letterSpacing:1 } }, "MATERIALS CHECKLIST:"),
       React.createElement("div", { style:{ display:"flex", flexWrap:"wrap", gap:10, marginTop:10 } },
         Array.from(new Set(
-          curL.map(function(a){ return a.materials || ""; })
+          curL.map(function(a){ return safeStr(a.materials); })
             .filter(function(m){ return m && !m.toLowerCase().includes("audio") && !m.toLowerCase().includes("track"); })
             .join(", ").split(", ")
             .filter(function(m){ return m.trim() !== ""; })
@@ -212,6 +213,13 @@ React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isL
 
     React.createElement("div", { style:{ marginTop:40 } },
       plan.map(function(a, i){
+        var target = safeStr(a.target);
+        var desc = safeStr(a.desc);
+        var audio = safeStr(a.audio);
+        var materials = safeStr(a.materials);
+        var name = safeStr(a.name) || "Activity";
+        var duration = a.duration || 0;
+
         return React.createElement("div", { key:i, style:{ display:"flex", gap:30, paddingBottom:40, borderLeft:"8px solid " + scColor, paddingLeft:30 } },
           React.createElement("div", { style:{ minWidth:90, fontWeight:900, color:scColor, fontSize:22 } },
             a.start, React.createElement("br", null),
@@ -219,22 +227,22 @@ React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isL
           ),
           React.createElement("div", { style:{ flex:1 } },
             React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" } },
-              React.createElement("b", { style:{ fontSize: isLive ? 28 : 22 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "name", e.target.innerText); } }, a.name),
+              React.createElement("b", { style:{ fontSize: isLive ? 28 : 22 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "name", e.target.innerText); } }, name),
               !isLive && React.createElement("div", { style:{ display:"flex", gap:8 } },
                 React.createElement("button", { onClick:function(){ setClipboard(a); showMsg("Copied!"); }, style:{ border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5 } }, "COPY"),
-                React.createElement("input", { type:"text", placeholder:"Audio", value:a.audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
-                React.createElement("input", { type:"number", value:a.duration, onChange:function(e){ updateAct(i, "duration", e.target.value); }, style:{ width:40, border:"none", background:"#EEE", borderRadius:5, textAlign:"center", fontWeight:900 } }),
+                React.createElement("input", { type:"text", placeholder:"Audio", value:audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
+                React.createElement("input", { type:"number", value:duration, onChange:function(e){ updateAct(i, "duration", e.target.value); }, style:{ width:40, border:"none", background:"#EEE", borderRadius:5, textAlign:"center", fontWeight:900 } }),
                 React.createElement("button", { onClick:function(){ deleteAct(i); }, style:{ border:"none", background:"none", fontSize:20 } }, "X")
               )
             ),
-            a.audio && React.createElement("div", { style:{ background:"#FBC02D", color:"#000", display:"inline-block", padding:"2px 8px", borderRadius:5, fontSize:13, fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + a.audio),
-            a.target && React.createElement("div", { style:{ background: isLive ? "#111" : "#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
-              a.target.split("[K]").map(function(part, idx){
+            audio ? React.createElement("div", { style:{ background:"#FBC02D", color:"#000", display:"inline-block", padding:"2px 8px", borderRadius:5, fontSize:13, fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + audio) : null,
+            target ? React.createElement("div", { style:{ background: isLive ? "#111" : "#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
+              target.split("[K]").map(function(part, idx){
                 return React.createElement("span", { key:idx, className: idx === 0 ? "t-phrase" : "k-phrase" }, part.replace("[T]","").replace("[K]","").trim());
               })
-            ),
-            React.createElement("p", { style:{ fontSize: isLive ? 20 : 16, margin:"10px 0" }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "desc", e.target.innerText); } }, a.desc),
-            React.createElement("div", { style:{ fontSize:12, fontWeight:700, color:scColor }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "materials", e.target.innerText); } }, a.materials)
+            ) : null,
+            desc ? React.createElement("p", { style:{ fontSize: isLive ? 20 : 16, margin:"10px 0" }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "desc", e.target.innerText); } }, desc) : null,
+            materials ? React.createElement("div", { style:{ fontSize:12, fontWeight:700, color:scColor }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "materials", e.target.innerText); } }, materials) : null
           )
         );
       })
@@ -244,11 +252,15 @@ React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isL
       React.createElement("b", { style:{ color:"#F08C00", fontSize:18 } }, "BONUS ACTIVITIES"),
       bonusActs.map(function(b, i){
         var realIdx = curL.indexOf(b);
+        var bname = safeStr(b.name) || "Bonus";
+        var baudio = safeStr(b.audio);
+        var bdesc = safeStr(b.desc);
+        var bmaterials = safeStr(b.materials);
         return React.createElement("div", { key:i, style:{ marginTop:20, borderBottom:"1px solid #FFE58F", paddingBottom:15 } },
-          React.createElement("b", { style:{ fontSize:22 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "name", e.target.innerText); } }, b.name),
-          b.audio && React.createElement("div", { style:{ color:"#FBC02D", fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + b.audio),
-          React.createElement("p", { style:{ fontSize:16 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "desc", e.target.innerText); } }, b.desc),
-          React.createElement("div", { style:{ fontSize:12, fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "materials", e.target.innerText); } }, b.materials)
+          React.createElement("b", { style:{ fontSize:22 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "name", e.target.innerText); } }, bname),
+          baudio ? React.createElement("div", { style:{ color:"#FBC02D", fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + baudio) : null,
+          bdesc ? React.createElement("p", { style:{ fontSize:16 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "desc", e.target.innerText); } }, bdesc) : null,
+          bmaterials ? React.createElement("div", { style:{ fontSize:12, fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "materials", e.target.innerText); } }, bmaterials) : null
         );
       })
     ),
@@ -368,11 +380,11 @@ return React.createElement(LoginScreen, null);
 
 if (view === "lesson" && sc && sp && sd) {
 return React.createElement(LessonView, {
-sc: sc, sp: sp, sd: sd,
-lessons: lessons,
-userId: session.user.id,
-onBack: function() { setView("course"); },
-onSave: handleSave
+sc:sc, sp:sp, sd:sd,
+lessons:lessons,
+userId:session.user.id,
+onBack:function(){ setView("course"); },
+onSave:handleSave
 });
 }
 
@@ -388,9 +400,9 @@ React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat
 Array.from({ length:10 }, function(_, i) {
 var dayKey = sc.id + "|" + p + "|" + (i+1);
 return React.createElement("button", {
-key: i,
-onClick: function() { setSp(p); setSd(i+1); setView("lesson"); },
-style: { padding:15, borderRadius:12, border:"1px solid #EEE", background: lessons[dayKey] ? "#E8F5E9" : "#FFF", fontWeight:700 }
+key:i,
+onClick:function(){ setSp(p); setSd(i+1); setView("lesson"); },
+style:{ padding:15, borderRadius:12, border:"1px solid #EEE", background: lessons[dayKey] ? "#E8F5E9" : "#FFF", fontWeight:700 }
 }, i+1);
 })
 )
@@ -412,9 +424,9 @@ React.createElement("input", { type:"file", ref:importRef, accept:".json", style
 React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:20 } },
 CS.map(function(c) {
 return React.createElement("div", {
-key: c.id,
-onClick: function() { setSc(c); setView("course"); },
-style: { background:"#fff", padding:30, borderRadius:25, borderBottom:"8px solid " + c.color, cursor:"pointer", textAlign:"center", color:"#333" }
+key:c.id,
+onClick:function(){ setSc(c); setView("course"); },
+style:{ background:"#fff", padding:30, borderRadius:25, borderBottom:"8px solid " + c.color, cursor:"pointer", textAlign:"center", color:"#333" }
 },
 React.createElement("div", { style:{ fontSize:45 } }, c.em),
 React.createElement("b", null, c.name)
