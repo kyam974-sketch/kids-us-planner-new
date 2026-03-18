@@ -1,62 +1,62 @@
-import React, { useState, useRef, useEffect } from “react”;
-import { createClient } from “@supabase/supabase-js”;
+import React, { useState, useRef, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = “https://zuaalqhbesywmfvuvgho.supabase.co”;
-const SUPABASE_ANON_KEY = “eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp1YWFscWhiZXN5d21mdnV2Z2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODM1OTksImV4cCI6MjA4OTM1OTU5OX0.9drUMBRWudHc_jh3n0pJaybr2qKZUCQvAezuGzb2pGI”;
+const SUPABASE_URL = "https://zuaalqhbesywmfvuvgho.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp1YWFscWhiZXN5d21mdnV2Z2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODM1OTksImV4cCI6MjA4OTM1OTU5OX0.9drUMBRWudHc_jh3n0pJaybr2qKZUCQvAezuGzb2pGI";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const CS = [
-{id:“mousy”,name:“Mousy”,color:”#8CB43B”,em:”\u{1F42D}”,type:“baby”, limit:45},
-{id:“linda”,name:“Linda”,color:”#F26522”,em:”\u{1F431}”,type:“baby”, limit:45},
-{id:“sam”,name:“Sam”,color:”#00B3B0”,em:”\u{1F9F8}”,type:“kids”, limit:60},
-{id:“emma”,name:“Emma”,color:”#E878A0”,em:”\u{1F98B}”,type:“kids”, limit:60},
-{id:“oliver”,name:“Oliver”,color:”#00B3B0”,em:”\u{1F438}”,type:“kids”, limit:60},
-{id:“marcia”,name:“Marcia”,color:”#E94E58”,em:”\u{1F380}”,type:“kids”, limit:60},
-{id:“pam”,name:“Pam & Paul”,color:”#FFD700”,em:”\u{1F46B}”,type:“kids”, limit:60},
-{id:“ben”,name:“Ben & Brenda”,color:”#4B0082”,em:”\u{1F9D1}”,type:“teens”, limit:90}
+{id:"mousy",name:"Mousy",color:"#8CB43B",em:"\u{1F42D}",type:"baby", limit:45},
+{id:"linda",name:"Linda",color:"#F26522",em:"\u{1F431}",type:"baby", limit:45},
+{id:"sam",name:"Sam",color:"#00B3B0",em:"\u{1F9F8}",type:"kids", limit:60},
+{id:"emma",name:"Emma",color:"#E878A0",em:"\u{1F98B}",type:"kids", limit:60},
+{id:"oliver",name:"Oliver",color:"#00B3B0",em:"\u{1F438}",type:"kids", limit:60},
+{id:"marcia",name:"Marcia",color:"#E94E58",em:"\u{1F380}",type:"kids", limit:60},
+{id:"pam",name:"Pam & Paul",color:"#FFD700",em:"\u{1F46B}",type:"kids", limit:60},
+{id:"ben",name:"Ben & Brenda",color:"#4B0082",em:"\u{1F9D1}",type:"teens", limit:90}
 ];
 
 function LoginScreen() {
-const [email, setEmail] = useState(””);
-const [password, setPassword] = useState(””);
-const [error, setError] = useState(””);
+const [email, setEmail] = useState("");
+const [password, setPassword] = useState("");
+const [error, setError] = useState("");
 const [loading, setLoading] = useState(false);
 
 const handleLogin = async () => {
 setLoading(true);
-setError(””);
+setError("");
 const { error } = await supabase.auth.signInWithPassword({ email, password });
-if (error) setError(“❌ “ + error.message);
+if (error) setError("❌ " + error.message);
 setLoading(false);
 };
 
 return (
-<div style={{ minHeight:“100vh”, background:”#F4F7F6”, display:“flex”, alignItems:“center”, justifyContent:“center”, fontFamily:“sans-serif” }}>
-<div style={{ background:”#fff”, padding:50, borderRadius:30, boxShadow:“0 10px 40px rgba(0,0,0,0.1)”, width:340, textAlign:“center” }}>
+<div style={{ minHeight:"100vh", background:"#F4F7F6", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"sans-serif" }}>
+<div style={{ background:"#fff", padding:50, borderRadius:30, boxShadow:"0 10px 40px rgba(0,0,0,0.1)", width:340, textAlign:"center" }}>
 <div style={{ fontSize:60, marginBottom:10 }}>🎓</div>
 <h2 style={{ fontWeight:900, marginBottom:30 }}>Kids&Us Planner</h2>
 <input
-type=“email”
-placeholder=“Email”
+type="email"
+placeholder="Email"
 value={email}
 onChange={e => setEmail(e.target.value)}
-style={{ width:“100%”, padding:“12px 15px”, borderRadius:12, border:“1px solid #DDD”, fontSize:15, marginBottom:12, boxSizing:“border-box” }}
+style={{ width:"100%", padding:"12px 15px", borderRadius:12, border:"1px solid #DDD", fontSize:15, marginBottom:12, boxSizing:"border-box" }}
 />
 <input
-type=“password”
-placeholder=“Password”
+type="password"
+placeholder="Password"
 value={password}
 onChange={e => setPassword(e.target.value)}
-onKeyDown={e => e.key === “Enter” && handleLogin()}
-style={{ width:“100%”, padding:“12px 15px”, borderRadius:12, border:“1px solid #DDD”, fontSize:15, marginBottom:20, boxSizing:“border-box” }}
+onKeyDown={e => e.key === "Enter" && handleLogin()}
+style={{ width:"100%", padding:"12px 15px", borderRadius:12, border:"1px solid #DDD", fontSize:15, marginBottom:20, boxSizing:"border-box" }}
 />
-{error && <div style={{ color:”#D63031”, fontSize:13, marginBottom:12 }}>{error}</div>}
+{error && <div style={{ color:"#D63031", fontSize:13, marginBottom:12 }}>{error}</div>}
 <button
 onClick={handleLogin}
 disabled={loading}
-style={{ width:“100%”, padding:“14px”, background:”#8CB43B”, color:”#fff”, border:“none”, borderRadius:12, fontWeight:900, fontSize:16, cursor:“pointer” }}
+style={{ width:"100%", padding:"14px", background:"#8CB43B", color:"#fff", border:"none", borderRadius:12, fontWeight:900, fontSize:16, cursor:"pointer" }}
 >
-{loading ? “…” : “ACCEDI”}
+{loading ? "…" : "ACCEDI"}
 </button>
 </div>
 </div>
@@ -66,17 +66,17 @@ style={{ width:“100%”, padding:“14px”, background:”#8CB43B”, color:�
 export default function App() {
 const [session, setSession] = useState(null);
 const [authChecked, setAuthChecked] = useState(false);
-const [view, setV] = useState(“home”);
+const [view, setV] = useState("home");
 const [sc, setSc] = useState(null);
-const [sp, setSp] = useState(””);
+const [sp, setSp] = useState("");
 const [sd, setSd] = useState(null);
 const [lessons, setL] = useState({});
 const [history, setHistory] = useState([]);
 const [clipboard, setClipboard] = useState(null);
 const [scn, setScn] = useState(false);
-const [ss, setSs] = useState(””);
+const [ss, setSs] = useState("");
 const [isLive, setIsLive] = useState(false);
-const [startTime, setStartTime] = useState(“16:30”);
+const [startTime, setStartTime] = useState("16:30");
 const [now, setNow] = useState(new Date());
 const [syncing, setSyncing] = useState(false);
 const fr = useRef(null);
@@ -96,7 +96,7 @@ return () => subscription.unsubscribe();
 useEffect(() => {
 if (!session) return;
 const loadLessons = async () => {
-const { data, error } = await supabase.from(“lessons”).select(“key, data”);
+const { data, error } = await supabase.from("lessons").select("key, data");
 if (error) { console.error(error); return; }
 const merged = {};
 data.forEach(row => { merged[row.key] = row.data; });
@@ -112,9 +112,9 @@ setHistory(h => […h, lessons]);
 setL(newL);
 const changedKeys = Object.keys(newL).filter(k => JSON.stringify(newL[k]) !== JSON.stringify(lessons[k]));
 for (const key of changedKeys) {
-await supabase.from(“lessons”).upsert(
+await supabase.from("lessons").upsert(
 { user_id: session.user.id, key, data: newL[key] },
-{ onConflict: “user_id,key” }
+{ onConflict: "user_id,key" }
 );
 }
 };
@@ -123,19 +123,19 @@ const undo = () => {
 if (history.length > 0) {
 setL(history[history.length - 1]);
 setHistory(h => h.slice(0, -1));
-setSs(“⏪ Undo!”);
+setSs("⏪ Undo!");
 }
 };
 
 const exportBackup = () => {
-const blob = new Blob([JSON.stringify(lessons, null, 2)], { type: “application/json” });
+const blob = new Blob([JSON.stringify(lessons, null, 2)], { type: "application/json" });
 const url = URL.createObjectURL(blob);
-const a = document.createElement(“a”);
+const a = document.createElement("a");
 a.href = url;
-a.download = “kids-us-backup-” + new Date().toISOString().slice(0,10) + “.json”;
+a.download = "kids-us-backup-" + new Date().toISOString().slice(0,10) + ".json";
 a.click();
 URL.revokeObjectURL(url);
-setSs(“💾 Backup exported!”);
+setSs("💾 Backup exported!");
 setScn(true);
 setTimeout(() => setScn(false), 3000);
 };
@@ -147,19 +147,19 @@ try {
 const parsed = JSON.parse(e.target.result);
 setSyncing(true);
 for (const key of Object.keys(parsed)) {
-await supabase.from(“lessons”).upsert(
+await supabase.from("lessons").upsert(
 { user_id: session.user.id, key, data: parsed[key] },
-{ onConflict: “user_id,key” }
+{ onConflict: "user_id,key" }
 );
 }
 setL(parsed);
 setSyncing(false);
-setSs(“✅ Backup restored!”);
+setSs("✅ Backup restored!");
 setScn(true);
 setTimeout(() => setScn(false), 3000);
 } catch (err) {
 setSyncing(false);
-setSs(“❌ Invalid file.”);
+setSs("❌ Invalid file.");
 setScn(true);
 setTimeout(() => setScn(false), 3000);
 }
@@ -170,67 +170,67 @@ reader.readAsText(file);
 const handleLogout = async () => {
 await supabase.auth.signOut();
 setL({});
-setV(“home”);
+setV("home");
 };
 
 const uploadToAI = async (files) => {
 setScn(true);
-setSs(“Scanning: Verbatim Audio & Target…”);
+setSs("Scanning: Verbatim Audio & Target…");
 try {
 const b64 = await new Promise(r => {
 const rd = new FileReader();
-rd.onload = () => r(rd.result.split(”,”)[1]);
+rd.onload = () => r(rd.result.split(",")[1]);
 rd.readAsDataURL(files[0]);
 });
-const promptMsg = “Extract Kids&Us lesson. Use ONLY English. CRITICAL: Find Track # or Audio and put it in audio field for THAT activity. Target Language: Verbatim copy. Use [T] for Teacher, [K] for Kids. If Bonus/Optional, set is_bonus: true. JSON: [{"name","duration","audio","desc","target","materials","is_bonus"}]”;
-const res = await fetch(”/api/generate”, {
-method: “POST”,
-headers: { “Content-Type”: “application/json” },
-body: JSON.stringify({ imageB64: b64, mimeType: files[0].type || “image/jpeg”, prompt: promptMsg })
+const promptMsg = "Extract Kids&Us lesson. Use ONLY English. CRITICAL: Find Track # or Audio and put it in audio field for THAT activity. Target Language: Verbatim copy. Use [T] for Teacher, [K] for Kids. If Bonus/Optional, set is_bonus: true. JSON: [{"name","duration","audio","desc","target","materials","is_bonus"}]";
+const res = await fetch("/api/generate", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ imageB64: b64, mimeType: files[0].type || "image/jpeg", prompt: promptMsg })
 });
 const d = await res.json();
-const cleanText = d.text.replace(/`json|`/g, “”).trim();
+const cleanText = d.text.replace(/`json|`/g, "").trim();
 const parsed = JSON.parse(cleanText.match(/{[\s\S]*}|[[\s\S]*]/)[0]);
-saveState({ …lessons, [sc.id + “|” + sp + “|” + sd]: parsed });
-setSs(“✅ Activities & Audio Synced!”);
+saveState({ …lessons, [sc.id + "|" + sp + "|" + sd]: parsed });
+setSs("✅ Activities & Audio Synced!");
 } catch (e) {
-setSs(“❌ Error: “ + e.message);
+setSs("❌ Error: " + e.message);
 }
 setTimeout(() => setScn(false), 3000);
 };
 
 const addActivity = (item) => {
-const key = sc.id + “|” + sp + “|” + sd;
-const newAct = item ? {…item} : { name: “New”, duration: 5, audio: “”, desc: “”, target: “[T] … [K] …”, materials: “”, is_bonus: false };
+const key = sc.id + "|" + sp + "|" + sd;
+const newAct = item ? {…item} : { name: "New", duration: 5, audio: "", desc: "", target: "[T] … [K] …", materials: "", is_bonus: false };
 saveState({ …lessons, [key]: […(lessons[key] || []), newAct] });
 };
 
 const updateAct = (idx, field, val) => {
-const key = sc.id + “|” + sp + “|” + sd;
+const key = sc.id + "|" + sp + "|" + sd;
 const newL = […(lessons[key] || [])];
 newL[idx][field] = val;
 saveState({ …lessons, [key]: newL });
 };
 
-const curL = lessons[sc?.id + “|” + sp + “|” + sd] || [];
-const normalActs = curL.filter(a => !a.is_bonus || sc.type === “baby”);
-const bonusActs = curL.filter(a => a.is_bonus && sc.type !== “baby”);
+const curL = lessons[sc?.id + "|" + sp + "|" + sd] || [];
+const normalActs = curL.filter(a => !a.is_bonus || sc.type === "baby");
+const bonusActs = curL.filter(a => a.is_bonus && sc.type !== "baby");
 
 let totalMinutes = 0;
 let lastTime = startTime;
 const plan = normalActs.map((a, i) => {
 const dur = parseInt(a.duration) || 0;
-const [h, m] = lastTime.split(”:”).map(Number);
+const [h, m] = lastTime.split(":").map(Number);
 const start = lastTime;
 const date = new Date();
 date.setHours(h, m + dur);
-lastTime = date.toLocaleTimeString([], { hour: “2-digit”, minute: “2-digit” });
+lastTime = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 totalMinutes += dur;
 return { …a, start, end: lastTime, id: i };
 });
 
 if (!authChecked) return (
-<div style={{ minHeight:“100vh”, background:”#F4F7F6”, display:“flex”, alignItems:“center”, justifyContent:“center”, fontFamily:“sans-serif” }}>
+<div style={{ minHeight:"100vh", background:"#F4F7F6", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"sans-serif" }}>
 <div style={{ fontSize:40 }}>⏳</div>
 </div>
 );
@@ -238,7 +238,7 @@ if (!authChecked) return (
 if (!session) return <LoginScreen />;
 
 return (
-<div style={{ minHeight:“100vh”, background: isLive ? “#000” : “#F4F7F6”, color: isLive ? “#FFF” : “#2D3436”, fontFamily:“sans-serif” }}>
+<div style={{ minHeight:"100vh", background: isLive ? "#000" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }}>
 <style>{`.t-phrase { color: #27AE60; display: block; } .k-phrase { color: #2980B9; display: block; margin-top: 4px; } .marker { position: absolute; left: 0; right: 0; border-top: 3px solid #FF7675; z-index: 50; } [contenteditable]:hover { background: rgba(0,0,0,0.05); border-radius: 4px; }`}</style>
 
 ```
