@@ -19,6 +19,36 @@ var CS = [
 
 var safeStr = function(val) { return val ? String(val) : ""; };
 
+class ErrorBoundary extends React.Component {
+constructor(props) {
+super(props);
+this.state = { hasError: false, error: null };
+}
+static getDerivedStateFromError(error) {
+return { hasError: true, error: error };
+}
+render() {
+if (this.state.hasError) {
+return React.createElement("div", {
+style: { minHeight:"100vh", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"sans-serif", padding:40 }
+},
+React.createElement("div", { style: { maxWidth:600, textAlign:"center" } },
+React.createElement("div", { style: { fontSize:50, marginBottom:20 } }, "\u26A0\uFE0F"),
+React.createElement("h2", { style: { color:"#D63031" } }, "Errore rilevato"),
+React.createElement("p", { style: { background:"#F8F9FA", padding:20, borderRadius:12, fontFamily:"monospace", fontSize:13, wordBreak:"break-all", textAlign:"left" } },
+this.state.error ? this.state.error.message : "Errore sconosciuto"
+),
+React.createElement("button", {
+onClick: function() { window.location.reload(); },
+style: { marginTop:20, padding:"10px 30px", background:"#8CB43B", color:"#fff", border:"none", borderRadius:12, fontWeight:900, cursor:"pointer" }
+}, "Ricarica")
+)
+);
+}
+return this.props.children;
+}
+}
+
 function LoginScreen() {
 var s1 = useState(""); var email = s1[0]; var setEmail = s1[1];
 var s2 = useState(""); var password = s2[0]; var setPassword = s2[1];
@@ -174,106 +204,104 @@ var scColor = sc.color;
 var scLimit = sc.limit;
 var scName = sc.name;
 
-return React.createElement("div", {
+return React.createElement(ErrorBoundary, null,
+React.createElement("div", {
 style: { minHeight:"100vh", background: isLive ? "#000" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
 },
 React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}"),
 
 ```
-React.createElement("div", { className:"no-print", style:{ display:"flex", justifyContent:"space-between", background: isLive ? "#111" : "#fff", padding:15, boxShadow:"0 5px 15px rgba(0,0,0,0.05)" } },
-  React.createElement("button", { onClick:onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16 } }, "\u2190 EXIT"),
-  React.createElement("div", { style:{ display:"flex", gap:10 } },
-    React.createElement("button", { onClick:undo, style:{ background:"#f1f2f6", border:"none", borderRadius:10, padding:"0 15px", fontWeight:800 } }, "UNDO"),
-    React.createElement("input", { type:"time", value:startTime, onChange:function(e){ setStartTime(e.target.value); }, style:{ borderRadius:8, border:"none", padding:10, fontWeight:900, background:"#F1F2F6" } }),
-    React.createElement("button", { onClick:function(){ setIsLive(!isLive); }, style:{ background:"#27AE60", color:"#fff", border:"none", padding:"10px 20px", borderRadius:12, fontWeight:800 } }, isLive ? "EDIT" : "LIVE"),
-    React.createElement("button", { onClick:function(){ window.print(); }, style:{ background:"#2F3542", color:"#fff", border:"none", borderRadius:12, padding:"0 20px" } }, "PRINT")
-  )
-),
+  React.createElement("div", { className:"no-print", style:{ display:"flex", justifyContent:"space-between", background: isLive ? "#111" : "#fff", padding:15, boxShadow:"0 5px 15px rgba(0,0,0,0.05)" } },
+    React.createElement("button", { onClick:onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16 } }, "\u2190 EXIT"),
+    React.createElement("div", { style:{ display:"flex", gap:10 } },
+      React.createElement("button", { onClick:undo, style:{ background:"#f1f2f6", border:"none", borderRadius:10, padding:"0 15px", fontWeight:800 } }, "UNDO"),
+      React.createElement("input", { type:"time", value:startTime, onChange:function(e){ setStartTime(e.target.value); }, style:{ borderRadius:8, border:"none", padding:10, fontWeight:900, background:"#F1F2F6" } }),
+      React.createElement("button", { onClick:function(){ setIsLive(!isLive); }, style:{ background:"#27AE60", color:"#fff", border:"none", padding:"10px 20px", borderRadius:12, fontWeight:800 } }, isLive ? "EDIT" : "LIVE"),
+      React.createElement("button", { onClick:function(){ window.print(); }, style:{ background:"#2F3542", color:"#fff", border:"none", borderRadius:12, padding:"0 20px" } }, "PRINT")
+    )
+  ),
 
-React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
-  React.createElement("div", { style:{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35 } },
-    React.createElement("h1", { style:{ color:scColor, margin:0 } }, scName + " - Day " + sd),
-    React.createElement("div", { style:{ fontWeight:900, color: totalMinutes > scLimit ? "#D63031" : "#00B894", fontSize:18 } }, "TOTAL: " + totalMinutes + " / " + scLimit + " min"),
+  React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
+    React.createElement("div", { style:{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35 } },
+      React.createElement("h1", { style:{ color:scColor, margin:0 } }, scName + " - Day " + sd),
+      React.createElement("div", { style:{ fontWeight:900, color: totalMinutes > scLimit ? "#D63031" : "#00B894", fontSize:18 } }, "TOTAL: " + totalMinutes + " / " + scLimit + " min"),
 
-    !isLive && React.createElement("div", { style:{ background:"#F8F9FA", padding:20, borderRadius:20, margin:"25px 0", border:"1px solid #E9ECEF" } },
-      React.createElement("b", { style:{ fontSize:11, color:"#A4B0BE", letterSpacing:1 } }, "MATERIALS CHECKLIST:"),
-      React.createElement("div", { style:{ display:"flex", flexWrap:"wrap", gap:10, marginTop:10 } },
-        Array.from(new Set(
-          curL.map(function(a){ return safeStr(a.materials); })
-            .filter(function(m){ return m && !m.toLowerCase().includes("audio") && !m.toLowerCase().includes("track"); })
-            .join(", ").split(", ")
-            .filter(function(m){ return m.trim() !== ""; })
-        )).map(function(m, i){
-          return React.createElement("label", { key:i, style:{ fontSize:13, fontWeight:700, background:"#FFF", padding:"5px 10px", borderRadius:8, border:"1px solid #DDD" } },
-            React.createElement("input", { type:"checkbox" }), " " + m.trim()
+      !isLive && React.createElement("div", { style:{ background:"#F8F9FA", padding:20, borderRadius:20, margin:"25px 0", border:"1px solid #E9ECEF" } },
+        React.createElement("b", { style:{ fontSize:11, color:"#A4B0BE", letterSpacing:1 } }, "MATERIALS CHECKLIST:"),
+        React.createElement("div", { style:{ display:"flex", flexWrap:"wrap", gap:10, marginTop:10 } },
+          Array.from(new Set(
+            curL.map(function(a){ return safeStr(a.materials); })
+              .filter(function(m){ return m && !m.toLowerCase().includes("audio") && !m.toLowerCase().includes("track"); })
+              .join(", ").split(", ")
+              .filter(function(m){ return m.trim() !== ""; })
+          )).map(function(m, i){
+            return React.createElement("label", { key:i, style:{ fontSize:13, fontWeight:700, background:"#FFF", padding:"5px 10px", borderRadius:8, border:"1px solid #DDD" } },
+              React.createElement("input", { type:"checkbox" }), " " + m.trim()
+            );
+          })
+        )
+      ),
+
+      React.createElement("div", { style:{ marginTop:40 } },
+        plan.map(function(a, i){
+          var target = safeStr(a.target);
+          var desc = safeStr(a.desc);
+          var audio = safeStr(a.audio);
+          var materials = safeStr(a.materials);
+          var name = safeStr(a.name) || "Activity";
+          var duration = a.duration || 0;
+
+          return React.createElement("div", { key:i, style:{ display:"flex", gap:30, paddingBottom:40, borderLeft:"8px solid " + scColor, paddingLeft:30 } },
+            React.createElement("div", { style:{ minWidth:90, fontWeight:900, color:scColor, fontSize:22 } },
+              a.start, React.createElement("br", null),
+              React.createElement("span", { style:{ fontSize:12, opacity:0.3 } }, a.end)
+            ),
+            React.createElement("div", { style:{ flex:1 } },
+              React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" } },
+                React.createElement("b", { style:{ fontSize: isLive ? 28 : 22 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "name", e.target.innerText); } }, name),
+                !isLive && React.createElement("div", { style:{ display:"flex", gap:8 } },
+                  React.createElement("button", { onClick:function(){ setClipboard(a); showMsg("Copied!"); }, style:{ border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5 } }, "COPY"),
+                  React.createElement("input", { type:"text", placeholder:"Audio", value:audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
+                  React.createElement("input", { type:"number", value:duration, onChange:function(e){ updateAct(i, "duration", e.target.value); }, style:{ width:40, border:"none", background:"#EEE", borderRadius:5, textAlign:"center", fontWeight:900 } }),
+                  React.createElement("button", { onClick:function(){ deleteAct(i); }, style:{ border:"none", background:"none", fontSize:20 } }, "X")
+                )
+              ),
+              audio ? React.createElement("div", { style:{ background:"#FBC02D", color:"#000", display:"inline-block", padding:"2px 8px", borderRadius:5, fontSize:13, fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + audio) : null,
+              target ? React.createElement("div", { style:{ background: isLive ? "#111" : "#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
+                target.split("[K]").map(function(part, idx){
+                  return React.createElement("span", { key:idx, className: idx === 0 ? "t-phrase" : "k-phrase" }, part.replace("[T]","").replace("[K]","").trim());
+                })
+              ) : null,
+              desc ? React.createElement("p", { style:{ fontSize: isLive ? 20 : 16, margin:"10px 0" }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "desc", e.target.innerText); } }, desc) : null,
+              materials ? React.createElement("div", { style:{ fontSize:12, fontWeight:700, color:scColor }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "materials", e.target.innerText); } }, materials) : null
+            )
           );
         })
+      ),
+
+      bonusActs.length > 0 && React.createElement("div", { style:{ marginTop:50, padding:35, background: isLive ? "#111" : "#FFF9DB", borderRadius:35, border:"3px dashed #FAB005" } },
+        React.createElement("b", { style:{ color:"#F08C00", fontSize:18 } }, "BONUS ACTIVITIES"),
+        bonusActs.map(function(b, i){
+          var realIdx = curL.indexOf(b);
+          return React.createElement("div", { key:i, style:{ marginTop:20, borderBottom:"1px solid #FFE58F", paddingBottom:15 } },
+            React.createElement("b", { style:{ fontSize:22 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "name", e.target.innerText); } }, safeStr(b.name) || "Bonus"),
+            safeStr(b.audio) ? React.createElement("div", { style:{ color:"#FBC02D", fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + safeStr(b.audio)) : null,
+            safeStr(b.desc) ? React.createElement("p", { style:{ fontSize:16 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "desc", e.target.innerText); } }, safeStr(b.desc)) : null,
+            safeStr(b.materials) ? React.createElement("div", { style:{ fontSize:12, fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "materials", e.target.innerText); } }, safeStr(b.materials)) : null
+          );
+        })
+      ),
+
+      !isLive && React.createElement("div", { style:{ marginTop:40, display:"flex", gap:10 } },
+        React.createElement("button", { onClick:function(){ fr.current.click(); }, style:{ flex:4, background:"#F1F2F6", border:"3px dashed #CCC", padding:30, borderRadius:25, fontWeight:900 } }, "SCAN LESSON"),
+        React.createElement("button", { onClick:function(){ addActivity(null); }, style:{ flex:1, background:scColor, color:"#fff", border:"none", borderRadius:25, fontSize:35 } }, "+"),
+        clipboard ? React.createElement("button", { onClick:function(){ addActivity(clipboard); }, style:{ flex:1.5, background:"#34495E", color:"#fff", border:"none", borderRadius:25, fontSize:10, fontWeight:900 } }, "PASTE") : null,
+        React.createElement("input", { type:"file", ref:fr, style:{ display:"none" }, onChange:function(e){ uploadToAI(e.target.files); } })
       )
-    ),
-
-    React.createElement("div", { style:{ marginTop:40 } },
-      plan.map(function(a, i){
-        var target = safeStr(a.target);
-        var desc = safeStr(a.desc);
-        var audio = safeStr(a.audio);
-        var materials = safeStr(a.materials);
-        var name = safeStr(a.name) || "Activity";
-        var duration = a.duration || 0;
-
-        return React.createElement("div", { key:i, style:{ display:"flex", gap:30, paddingBottom:40, borderLeft:"8px solid " + scColor, paddingLeft:30 } },
-          React.createElement("div", { style:{ minWidth:90, fontWeight:900, color:scColor, fontSize:22 } },
-            a.start, React.createElement("br", null),
-            React.createElement("span", { style:{ fontSize:12, opacity:0.3 } }, a.end)
-          ),
-          React.createElement("div", { style:{ flex:1 } },
-            React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" } },
-              React.createElement("b", { style:{ fontSize: isLive ? 28 : 22 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "name", e.target.innerText); } }, name),
-              !isLive && React.createElement("div", { style:{ display:"flex", gap:8 } },
-                React.createElement("button", { onClick:function(){ setClipboard(a); showMsg("Copied!"); }, style:{ border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5 } }, "COPY"),
-                React.createElement("input", { type:"text", placeholder:"Audio", value:audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
-                React.createElement("input", { type:"number", value:duration, onChange:function(e){ updateAct(i, "duration", e.target.value); }, style:{ width:40, border:"none", background:"#EEE", borderRadius:5, textAlign:"center", fontWeight:900 } }),
-                React.createElement("button", { onClick:function(){ deleteAct(i); }, style:{ border:"none", background:"none", fontSize:20 } }, "X")
-              )
-            ),
-            audio ? React.createElement("div", { style:{ background:"#FBC02D", color:"#000", display:"inline-block", padding:"2px 8px", borderRadius:5, fontSize:13, fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + audio) : null,
-            target ? React.createElement("div", { style:{ background: isLive ? "#111" : "#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
-              target.split("[K]").map(function(part, idx){
-                return React.createElement("span", { key:idx, className: idx === 0 ? "t-phrase" : "k-phrase" }, part.replace("[T]","").replace("[K]","").trim());
-              })
-            ) : null,
-            desc ? React.createElement("p", { style:{ fontSize: isLive ? 20 : 16, margin:"10px 0" }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "desc", e.target.innerText); } }, desc) : null,
-            materials ? React.createElement("div", { style:{ fontSize:12, fontWeight:700, color:scColor }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "materials", e.target.innerText); } }, materials) : null
-          )
-        );
-      })
-    ),
-
-    bonusActs.length > 0 && React.createElement("div", { style:{ marginTop:50, padding:35, background: isLive ? "#111" : "#FFF9DB", borderRadius:35, border:"3px dashed #FAB005" } },
-      React.createElement("b", { style:{ color:"#F08C00", fontSize:18 } }, "BONUS ACTIVITIES"),
-      bonusActs.map(function(b, i){
-        var realIdx = curL.indexOf(b);
-        var bname = safeStr(b.name) || "Bonus";
-        var baudio = safeStr(b.audio);
-        var bdesc = safeStr(b.desc);
-        var bmaterials = safeStr(b.materials);
-        return React.createElement("div", { key:i, style:{ marginTop:20, borderBottom:"1px solid #FFE58F", paddingBottom:15 } },
-          React.createElement("b", { style:{ fontSize:22 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "name", e.target.innerText); } }, bname),
-          baudio ? React.createElement("div", { style:{ color:"#FBC02D", fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + baudio) : null,
-          bdesc ? React.createElement("p", { style:{ fontSize:16 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "desc", e.target.innerText); } }, bdesc) : null,
-          bmaterials ? React.createElement("div", { style:{ fontSize:12, fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(realIdx, "materials", e.target.innerText); } }, bmaterials) : null
-        );
-      })
-    ),
-
-    !isLive && React.createElement("div", { style:{ marginTop:40, display:"flex", gap:10 } },
-      React.createElement("button", { onClick:function(){ fr.current.click(); }, style:{ flex:4, background:"#F1F2F6", border:"3px dashed #CCC", padding:30, borderRadius:25, fontWeight:900 } }, "SCAN LESSON"),
-      React.createElement("button", { onClick:function(){ addActivity(null); }, style:{ flex:1, background:scColor, color:"#fff", border:"none", borderRadius:25, fontSize:35 } }, "+"),
-      clipboard ? React.createElement("button", { onClick:function(){ addActivity(clipboard); }, style:{ flex:1.5, background:"#34495E", color:"#fff", border:"none", borderRadius:25, fontSize:10, fontWeight:900 } }, "PASTE") : null,
-      React.createElement("input", { type:"file", ref:fr, style:{ display:"none" }, onChange:function(e){ uploadToAI(e.target.files); } })
     )
-  )
-),
-scn && React.createElement("div", { style:{ position:"fixed", bottom:30, left:"50%", transform:"translateX(-50%)", background:"#2F3542", color:"#fff", padding:"15px 30px", borderRadius:50, fontWeight:900, zIndex:10000 } }, ss)
+  ),
+  scn && React.createElement("div", { style:{ position:"fixed", bottom:30, left:"50%", transform:"translateX(-50%)", background:"#2F3542", color:"#fff", padding:"15px 30px", borderRadius:50, fontWeight:900, zIndex:10000 } }, ss)
+)
 ```
 
 );
