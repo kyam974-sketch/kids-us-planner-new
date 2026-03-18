@@ -100,12 +100,16 @@ var s12 = useState(false); var isLive = s12[0]; var setIsLive = s12[1];
 var s13 = useState("16:30"); var startTime = s13[0]; var setStartTime = s13[1];
 var s14 = useState(new Date()); var now = s14[0]; var setNow = s14[1];
 var s15 = useState(false); var syncing = s15[0]; var setSyncing = s15[1];
+var s16 = useState(""); var appError = s16[0]; var setAppError = s16[1];
 var fr = useRef(null);
 var importRef = useRef(null);
 
 useEffect(function() {
 supabase.auth.getSession().then(function(res) {
 setSession(res.data.session);
+setAuthChecked(true);
+}).catch(function(err) {
+setAppError("Auth error: " + err.message);
 setAuthChecked(true);
 });
 var sub = supabase.auth.onAuthStateChange(function(_event, sess) {
@@ -117,11 +121,18 @@ return function() { sub.data.subscription.unsubscribe(); };
 useEffect(function() {
 if (!session) { return; }
 var loadLessons = async function() {
+try {
 var res = await supabase.from("lessons").select("key, data");
-if (res.error) { console.error(res.error); return; }
+if (res.error) {
+setAppError("DB error: " + res.error.message + " | code: " + res.error.code);
+return;
+}
 var merged = {};
 res.data.forEach(function(row) { merged[row.key] = row.data; });
 setL(merged);
+} catch(err) {
+setAppError("Load error: " + err.message);
+}
 };
 loadLessons();
 var t = setInterval(function() { setNow(new Date()); }, 1000);
@@ -135,10 +146,11 @@ var keys = Object.keys(newL);
 for (var i = 0; i < keys.length; i++) {
 var key = keys[i];
 if (JSON.stringify(newL[key]) !== JSON.stringify(lessons[key])) {
-await supabase.from("lessons").upsert(
+var res = await supabase.from("lessons").upsert(
 { user_id: session.user.id, key: key, data: newL[key] },
 { onConflict: "user_id,key" }
 );
+if (res.error) { setAppError("Save error: " + res.error.message); }
 }
 }
 };
@@ -185,9 +197,7 @@ setScn(true);
 setTimeout(function() { setScn(false); }, 3000);
 } catch(err) {
 setSyncing(false);
-setSs("Invalid file.");
-setScn(true);
-setTimeout(function() { setScn(false); }, 3000);
+setAppError("Import error: " + err.message);
 }
 };
 reader.readAsText(file);
@@ -276,11 +286,29 @@ style: { minHeight:"100vh", background:"#F4F7F6", display:"flex", alignItems:"ce
 
 if (!session) { return React.createElement(LoginScreen, null); }
 
+if (appError) {
+return React.createElement("div", {
+style: { minHeight:"100vh", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"sans-serif", padding:40 }
+},
+React.createElement("div", { style: { maxWidth:600, textAlign:"center" } },
+React.createElement("div", { style: { fontSize:50, marginBottom:20 } }, "\u26A0\uFE0F"),
+React.createElement("h2", { style: { color:"#D63031", marginBottom:20 } }, "Errore"),
+React.createElement("p", { style: { background:"#F8F9FA", padding:20, borderRadius:12, fontFamily:"monospace", fontSize:14, wordBreak:"break-all" } }, appError),
+React.createElement("button", {
+onClick: function() { setAppError(""); },
+style: { marginTop:20, padding:"10px 30px", background:"#8CB43B", color:"#fff", border:"none", borderRadius:12, fontWeight:900, cursor:"pointer" }
+}, "Riprova"),
+React.createElement("button", {
+onClick: handleLogout,
+style: { marginTop:20, marginLeft:10, padding:"10px 30px", background:"#DFE6E9", color:"#636e72", border:"none", borderRadius:12, fontWeight:900, cursor:"pointer" }
+}, "Logout")
+)
+);
+}
+
 var scColor = sc ? sc.color : "#8CB43B";
-var scType = sc ? sc.type : "";
 var scLimit = sc ? sc.limit : 60;
 var scName = sc ? sc.name : "";
-var scEm = sc ? sc.em : "";
 
 return React.createElement("div", {
 style: { minHeight:"100vh", background: isLive ? "#000" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
