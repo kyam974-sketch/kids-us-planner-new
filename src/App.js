@@ -19,6 +19,16 @@ var CS = [
 
 var safeStr = function(val) { return val ? String(val) : ""; };
 
+var loadLessonsFromDB = function(callback) {
+  supabase.from("lessons").select("key, data").then(function(res) {
+    if (!res.error && res.data) {
+      var merged = {};
+      res.data.forEach(function(row) { merged[row.key] = row.data; });
+      callback(merged);
+    }
+  });
+};
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -194,7 +204,7 @@ function LessonView(props) {
     var m = Number(parts[1]);
     var start = lastTime;
     var date = new Date();
-    date.setHours(h, m + dur);
+    date.setHours(h, m + dur, 0, 0);
     lastTime = date.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
     totalMinutes += dur;
     return Object.assign({}, a, { start:start, end:lastTime, idx:i });
@@ -203,6 +213,12 @@ function LessonView(props) {
   var scColor = sc.color;
   var scLimit = sc.limit;
   var scName = sc.name;
+
+  var startParts = startTime.split(":");
+  var startTotalMins = Number(startParts[0]) * 60 + Number(startParts[1]);
+  var nowTotalMins = now.getHours() * 60 + now.getMinutes();
+  var elapsedMins = nowTotalMins - startTotalMins;
+  var markerTop = 200 + (elapsedMins * 55);
 
   return React.createElement(ErrorBoundary, null,
     React.createElement("div", {
@@ -221,7 +237,9 @@ function LessonView(props) {
       ),
 
       React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
-        React.createElement("div", { style:{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35 } },
+        React.createElement("div", { style:{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35, position:"relative" } },
+          isLive && elapsedMins >= 0 && React.createElement("div", { style:{ position:"absolute", left:0, right:0, top:markerTop, borderTop:"3px solid #FF7675", zIndex:50 } }),
+
           React.createElement("h1", { style:{ color:scColor, margin:0 } }, scName + " - Day " + sd),
           React.createElement("div", { style:{ fontWeight:900, color: totalMinutes > scLimit ? "#D63031" : "#00B894", fontSize:18 } }, "TOTAL: " + totalMinutes + " / " + scLimit + " min"),
 
@@ -318,26 +336,30 @@ export default function App() {
   var importRef = useRef(null);
 
   useEffect(function() {
-    supabase.auth.getSession().then(function(res) {
-      setSession(res.data.session);
-      setChecked(true);
-    });
-    var listener = supabase.auth.onAuthStateChange(function(event, sess) {
-      setSession(sess);
-    });
-    return function() { listener.data.subscription.unsubscribe(); };
-  }, []);
-
-  useEffect(function() {
-    if (!session) { return; }
-    supabase.from("lessons").select("key, data").then(function(res) {
-      if (!res.error && res.data) {
-        var merged = {};
-        res.data.forEach(function(row) { merged[row.key] = row.data; });
-        setLessons(merged);
+    supabase.auth.onAuthStateChange(function(event, sess) {
+      if (event === "SIGNED_IN" && sess) {
+        setSession(sess);
+        loadLessonsFromDB(function(data) {
+          setLessons(data);
+          setChecked(true);
+        });
+      } else if (event === "SIGNED_OUT") {
+        setSession(null);
+        setLessons({});
+        setChecked(true);
+      } else if (event === "INITIAL_SESSION") {
+        if (sess) {
+          setSession(sess);
+          loadLessonsFromDB(function(data) {
+            setLessons(data);
+            setChecked(true);
+          });
+        } else {
+          setChecked(true);
+        }
       }
     });
-  }, [session]);
+  }, []);
 
   var handleSave = function(newL, key, data) {
     setLessons(newL);
@@ -365,26 +387,21 @@ export default function App() {
 
   var importBackup = function(file) {
     var reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
       try {
         var parsed = JSON.parse(e.target.result);
         setSyncing(true);
         var keys = Object.keys(parsed);
-        var done = 0;
         if (keys.length === 0) { setSyncing(false); return; }
-        keys.forEach(function(key) {
-          supabase.from("lessons").upsert(
-            { user_id: session.user.id, key: key, data: parsed[key] },
+        for (var i = 0; i < keys.length; i++) {
+          await supabase.from("lessons").upsert(
+            { user_id: session.user.id, key: keys[i], data: parsed[keys[i]] },
             { onConflict: "user_id,key" }
-          ).then(function() {
-            done++;
-            if (done === keys.length) {
-              setLessons(parsed);
-              setSyncing(false);
-              showMsg("Backup restored!");
-            }
-          });
-        });
+          );
+        }
+        setLessons(parsed);
+        setSyncing(false);
+        showMsg("Backup restored!");
       } catch(err) {
         setSyncing(false);
         showMsg("File non valido.");
