@@ -113,7 +113,6 @@ function LessonView(props) {
   var s5 = useState(new Date()); var now = s5[0]; var setNow = s5[1];
   var s6 = useState(false); var scn = s6[0]; var setScn = s6[1];
   var s7 = useState(""); var ss = s7[0]; var setSs = s7[1];
-  var actRefs = useRef({});
   var fr = useRef(null);
 
   useEffect(function() {
@@ -209,7 +208,6 @@ function LessonView(props) {
   var scColor = sc.color;
   var scLimit = sc.limit;
   var scName = sc.name;
-
   var nowMins = now.getHours() * 60 + now.getMinutes();
 
   var currentActIdx = -1;
@@ -226,7 +224,7 @@ function LessonView(props) {
     React.createElement("div", {
       style: { minHeight:"100vh", background: isLive ? "#000" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
     },
-      React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}.current-act{border-left:8px solid #FF7675 !important;}"),
+      React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}"),
 
       React.createElement("div", { className:"no-print", style:{ display:"flex", justifyContent:"space-between", background: isLive ? "#111" : "#fff", padding:15, boxShadow:"0 5px 15px rgba(0,0,0,0.05)" } },
         React.createElement("button", { onClick:onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16 } }, "\u2190 EXIT"),
@@ -238,9 +236,9 @@ function LessonView(props) {
         )
       ),
 
-      isLive && React.createElement("div", { style:{ background:"#111", padding:"8px 20px", textAlign:"center", fontSize:14, color:"#aaa" } },
-        "Ora: " + now.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }) +
-        (currentActIdx >= 0 ? "  |  Attivita corrente: " + safeStr(plan[currentActIdx].name) : "")
+      isLive && React.createElement("div", { style:{ background:"#FF7675", padding:"10px 20px", textAlign:"center", fontSize:16, fontWeight:900, color:"#fff" } },
+        now.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }) +
+        (currentActIdx >= 0 ? "  \u25B6  " + safeStr(plan[currentActIdx].name) : "  \u23F3  In attesa...")
       ),
 
       React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
@@ -277,11 +275,13 @@ function LessonView(props) {
               return React.createElement("div", {
                 key:i,
                 style:{
-                  display:"flex", gap:30, paddingBottom:40,
-                  borderLeft: isCurrent ? "8px solid #FF7675" : "8px solid " + scColor,
+                  display:"flex", gap:30, paddingBottom:40, paddingTop: isCurrent ? 20 : 0,
+                  borderLeft: isCurrent ? "12px solid #FF7675" : "8px solid " + scColor,
                   paddingLeft:30,
-                  background: isCurrent ? (isLive ? "#111" : "#FFF5F5") : "transparent",
-                  borderRadius: isCurrent ? 12 : 0,
+                  background: isCurrent ? "#2d0000" : "transparent",
+                  borderRadius: isCurrent ? 16 : 0,
+                  marginBottom: isCurrent ? 10 : 0,
+                  boxShadow: isCurrent ? "0 0 30px rgba(255,118,117,0.4)" : "none",
                   transition:"all 0.5s"
                 }
               },
@@ -291,7 +291,7 @@ function LessonView(props) {
                 ),
                 React.createElement("div", { style:{ flex:1 } },
                   React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" } },
-                    React.createElement("b", { style:{ fontSize: isLive ? 28 : 22 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "name", e.target.innerText); } }, name),
+                    React.createElement("b", { style:{ fontSize: isLive ? 28 : 22, color: isCurrent ? "#FF7675" : "inherit" } }, isCurrent ? "\u25B6 " + name : name),
                     !isLive && React.createElement("div", { style:{ display:"flex", gap:8 } },
                       React.createElement("button", { onClick:function(){ setClipboard(a); showMsg("Copied!"); }, style:{ border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5 } }, "COPY"),
                       React.createElement("input", { type:"text", placeholder:"Audio", value:audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
@@ -300,7 +300,7 @@ function LessonView(props) {
                     )
                   ),
                   audio ? React.createElement("div", { style:{ background:"#FBC02D", color:"#000", display:"inline-block", padding:"2px 8px", borderRadius:5, fontSize:13, fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + audio) : null,
-                  target ? React.createElement("div", { style:{ background: isLive ? "#1a1a1a" : "#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
+                  target ? React.createElement("div", { style:{ background: isCurrent ? "#3d0000" : (isLive ? "#111" : "#F1F2F6"), padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
                     target.split("[K]").map(function(part, idx){
                       return React.createElement("span", { key:idx, className: idx === 0 ? "t-phrase" : "k-phrase" }, part.replace("[T]","").replace("[K]","").trim());
                     })
@@ -356,8 +356,8 @@ export default function App() {
       if (!res.error && res.data) {
         var merged = {};
         res.data.forEach(function(row) { merged[row.key] = row.data; });
-        if (callback) { callback(merged); }
-        else { setLessons(merged); }
+        setLessons(merged);
+        if (callback) { callback(); }
       }
     });
   };
@@ -367,10 +367,7 @@ export default function App() {
       var sess = res.data.session;
       if (sess) {
         setSession(sess);
-        fetchLessons(function(data) {
-          setLessons(data);
-          setChecked(true);
-        });
+        fetchLessons(function() { setChecked(true); });
       } else {
         setChecked(true);
       }
@@ -379,9 +376,7 @@ export default function App() {
     var listener = supabase.auth.onAuthStateChange(function(event, sess) {
       if (event === "SIGNED_IN") {
         setSession(sess);
-        fetchLessons(function(data) {
-          setLessons(data);
-        });
+        fetchLessons(null);
       } else if (event === "SIGNED_OUT") {
         setSession(null);
         setLessons({});
@@ -490,6 +485,7 @@ export default function App() {
       React.createElement("div", { style:{ display:"flex", gap:10, justifyContent:"center", marginBottom:30, flexWrap:"wrap" } },
         React.createElement("button", { onClick:exportBackup, style:{ background:"#27AE60", color:"#fff", border:"none", borderRadius:12, padding:"10px 20px", fontWeight:900, cursor:"pointer", fontSize:15 } }, "Export Backup"),
         React.createElement("button", { onClick:function(){ importRef.current.click(); }, style:{ background:"#2F3542", color:"#fff", border:"none", borderRadius:12, padding:"10px 20px", fontWeight:900, cursor:"pointer", fontSize:15 } }, "Import Backup"),
+        React.createElement("button", { onClick:function(){ fetchLessons(function(){ showMsg("Dati ricaricati!"); }); }, style:{ background:"#0984E3", color:"#fff", border:"none", borderRadius:12, padding:"10px 20px", fontWeight:900, cursor:"pointer", fontSize:15 } }, "\uD83D\uDD04 Ricarica"),
         React.createElement("button", { onClick:function(){ supabase.auth.signOut(); }, style:{ background:"#DFE6E9", color:"#636e72", border:"none", borderRadius:12, padding:"10px 20px", fontWeight:900, cursor:"pointer", fontSize:15 } }, "Logout"),
         React.createElement("input", { type:"file", ref:importRef, accept:".json", style:{ display:"none" }, onChange:function(e){ if(e.target.files[0]){ importBackup(e.target.files[0]); } } })
       ),
