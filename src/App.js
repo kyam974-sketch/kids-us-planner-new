@@ -108,7 +108,7 @@ return () => clearInterval(t);
 }, [session]);
 
 const saveState = async (newL) => {
-setHistory(h => […h, lessons]);
+setHistory(h => ["..."h, lessons]);
 setL(newL);
 const changedKeys = Object.keys(newL).filter(k => JSON.stringify(newL[k]) !== JSON.stringify(lessons[k]));
 for (const key of changedKeys) {
