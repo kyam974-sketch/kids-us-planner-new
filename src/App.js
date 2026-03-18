@@ -63,17 +63,19 @@ style: { width:"100%", padding:"14px", background:"#8CB43B", color:"#fff", borde
 
 function HomeScreen(props) {
 var session = props.session;
+var lessons = props.lessons;
 
 return React.createElement("div", {
 style: { minHeight:"100vh", background:"#F4F7F6", fontFamily:"sans-serif" }
 },
 React.createElement("div", { style: { maxWidth:800, margin:"0 auto", padding:40 } },
 React.createElement("h1", { style: { textAlign:"center", fontWeight:900 } }, "Kids&Us Master Planner \uD83C\uDF93"),
-React.createElement("p", { style: { textAlign:"center", color:"#636e72", marginBottom:30 } }, session.user.email),
-React.createElement("div", { style: { display:"flex", gap:10, justifyContent:"center", marginBottom:30, flexWrap:"wrap" } },
+React.createElement("p", { style: { textAlign:"center", color:"#636e72", marginBottom:10 } }, session.user.email),
+React.createElement("p", { style: { textAlign:"center", color:"#00B894", fontWeight:900, marginBottom:30 } }, "Lezioni caricate: " + Object.keys(lessons).length),
+React.createElement("div", { style: { display:"flex", gap:10, justifyContent:"center", marginBottom:30 } },
 React.createElement("button", {
 onClick: function() { supabase.auth.signOut(); },
-style: { background:"#DFE6E9", color:"#636e72", border:"none", borderRadius:12, padding:"10px 20px", fontWeight:900, cursor:"pointer", fontSize:15 }
+style: { background:"#DFE6E9", color:"#636e72", border:"none", borderRadius:12, padding:"10px 20px", fontWeight:900, cursor:"pointer" }
 }, "Logout")
 ),
 React.createElement("div", { style: { display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:20 } },
@@ -94,6 +96,7 @@ React.createElement("b", null, c.name)
 export default function App() {
 var s1 = useState(null); var session = s1[0]; var setSession = s1[1];
 var s2 = useState(false); var checked = s2[0]; var setChecked = s2[1];
+var s3 = useState({}); var lessons = s3[0]; var setLessons = s3[1];
 
 useEffect(function() {
 supabase.auth.getSession().then(function(res) {
@@ -106,6 +109,17 @@ setSession(sess);
 return function() { listener.data.subscription.unsubscribe(); };
 }, []);
 
+useEffect(function() {
+if (!session) { return; }
+supabase.from("lessons").select("key, data").then(function(res) {
+if (!res.error && res.data) {
+var merged = {};
+res.data.forEach(function(row) { merged[row.key] = row.data; });
+setLessons(merged);
+}
+});
+}, [session]);
+
 if (!checked) {
 return React.createElement("div", {
 style: { minHeight:"100vh", background:"#F4F7F6", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"sans-serif" }
@@ -116,5 +130,5 @@ if (!session) {
 return React.createElement(LoginScreen, null);
 }
 
-return React.createElement(HomeScreen, { session: session });
+return React.createElement(HomeScreen, { session: session, lessons: lessons });
 }
