@@ -19,14 +19,9 @@ var CS = [
 
 var safeStr = function(val) { return val ? String(val) : ""; };
 
-var loadLessonsFromDB = function(callback) {
-  supabase.from("lessons").select("key, data").then(function(res) {
-    if (!res.error && res.data) {
-      var merged = {};
-      res.data.forEach(function(row) { merged[row.key] = row.data; });
-      callback(merged);
-    }
-  });
+var timeToMins = function(t) {
+  var parts = t.split(":");
+  return Number(parts[0]) * 60 + Number(parts[1]);
 };
 
 class ErrorBoundary extends React.Component {
@@ -118,6 +113,7 @@ function LessonView(props) {
   var s5 = useState(new Date()); var now = s5[0]; var setNow = s5[1];
   var s6 = useState(false); var scn = s6[0]; var setScn = s6[1];
   var s7 = useState(""); var ss = s7[0]; var setSs = s7[1];
+  var actRefs = useRef({});
   var fr = useRef(null);
 
   useEffect(function() {
@@ -214,17 +210,23 @@ function LessonView(props) {
   var scLimit = sc.limit;
   var scName = sc.name;
 
-  var startParts = startTime.split(":");
-  var startTotalMins = Number(startParts[0]) * 60 + Number(startParts[1]);
-  var nowTotalMins = now.getHours() * 60 + now.getMinutes();
-  var elapsedMins = nowTotalMins - startTotalMins;
-  var markerTop = 200 + (elapsedMins * 55);
+  var nowMins = now.getHours() * 60 + now.getMinutes();
+
+  var currentActIdx = -1;
+  for (var pi = 0; pi < plan.length; pi++) {
+    var actStartMins = timeToMins(plan[pi].start);
+    var actEndMins = timeToMins(plan[pi].end);
+    if (nowMins >= actStartMins && nowMins < actEndMins) {
+      currentActIdx = pi;
+      break;
+    }
+  }
 
   return React.createElement(ErrorBoundary, null,
     React.createElement("div", {
       style: { minHeight:"100vh", background: isLive ? "#000" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
     },
-      React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}"),
+      React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}.current-act{border-left:8px solid #FF7675 !important;}"),
 
       React.createElement("div", { className:"no-print", style:{ display:"flex", justifyContent:"space-between", background: isLive ? "#111" : "#fff", padding:15, boxShadow:"0 5px 15px rgba(0,0,0,0.05)" } },
         React.createElement("button", { onClick:onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16 } }, "\u2190 EXIT"),
@@ -236,10 +238,13 @@ function LessonView(props) {
         )
       ),
 
-      React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
-        React.createElement("div", { style:{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35, position:"relative" } },
-          isLive && elapsedMins >= 0 && React.createElement("div", { style:{ position:"absolute", left:0, right:0, top:markerTop, borderTop:"3px solid #FF7675", zIndex:50 } }),
+      isLive && React.createElement("div", { style:{ background:"#111", padding:"8px 20px", textAlign:"center", fontSize:14, color:"#aaa" } },
+        "Ora: " + now.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }) +
+        (currentActIdx >= 0 ? "  |  Attivita corrente: " + safeStr(plan[currentActIdx].name) : "")
+      ),
 
+      React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
+        React.createElement("div", { style:{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35 } },
           React.createElement("h1", { style:{ color:scColor, margin:0 } }, scName + " - Day " + sd),
           React.createElement("div", { style:{ fontWeight:900, color: totalMinutes > scLimit ? "#D63031" : "#00B894", fontSize:18 } }, "TOTAL: " + totalMinutes + " / " + scLimit + " min"),
 
@@ -267,9 +272,20 @@ function LessonView(props) {
               var materials = safeStr(a.materials);
               var name = safeStr(a.name) || "Activity";
               var duration = a.duration || 0;
+              var isCurrent = isLive && i === currentActIdx;
 
-              return React.createElement("div", { key:i, style:{ display:"flex", gap:30, paddingBottom:40, borderLeft:"8px solid " + scColor, paddingLeft:30 } },
-                React.createElement("div", { style:{ minWidth:90, fontWeight:900, color:scColor, fontSize:22 } },
+              return React.createElement("div", {
+                key:i,
+                style:{
+                  display:"flex", gap:30, paddingBottom:40,
+                  borderLeft: isCurrent ? "8px solid #FF7675" : "8px solid " + scColor,
+                  paddingLeft:30,
+                  background: isCurrent ? (isLive ? "#111" : "#FFF5F5") : "transparent",
+                  borderRadius: isCurrent ? 12 : 0,
+                  transition:"all 0.5s"
+                }
+              },
+                React.createElement("div", { style:{ minWidth:90, fontWeight:900, color: isCurrent ? "#FF7675" : scColor, fontSize:22 } },
                   a.start, React.createElement("br", null),
                   React.createElement("span", { style:{ fontSize:12, opacity:0.3 } }, a.end)
                 ),
@@ -284,13 +300,13 @@ function LessonView(props) {
                     )
                   ),
                   audio ? React.createElement("div", { style:{ background:"#FBC02D", color:"#000", display:"inline-block", padding:"2px 8px", borderRadius:5, fontSize:13, fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + audio) : null,
-                  target ? React.createElement("div", { style:{ background: isLive ? "#111" : "#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
+                  target ? React.createElement("div", { style:{ background: isLive ? "#1a1a1a" : "#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
                     target.split("[K]").map(function(part, idx){
                       return React.createElement("span", { key:idx, className: idx === 0 ? "t-phrase" : "k-phrase" }, part.replace("[T]","").replace("[K]","").trim());
                     })
                   ) : null,
                   desc ? React.createElement("p", { style:{ fontSize: isLive ? 20 : 16, margin:"10px 0" }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "desc", e.target.innerText); } }, desc) : null,
-                  materials ? React.createElement("div", { style:{ fontSize:12, fontWeight:700, color:scColor }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "materials", e.target.innerText); } }, materials) : null
+                  materials ? React.createElement("div", { style:{ fontSize:12, fontWeight:700, color: isCurrent ? "#FF7675" : scColor }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "materials", e.target.innerText); } }, materials) : null
                 )
               );
             })
@@ -335,30 +351,44 @@ export default function App() {
   var s10 = useState(false); var syncing = s10[0]; var setSyncing = s10[1];
   var importRef = useRef(null);
 
+  var fetchLessons = function(callback) {
+    supabase.from("lessons").select("key, data").then(function(res) {
+      if (!res.error && res.data) {
+        var merged = {};
+        res.data.forEach(function(row) { merged[row.key] = row.data; });
+        if (callback) { callback(merged); }
+        else { setLessons(merged); }
+      }
+    });
+  };
+
   useEffect(function() {
-    supabase.auth.onAuthStateChange(function(event, sess) {
-      if (event === "SIGNED_IN" && sess) {
+    supabase.auth.getSession().then(function(res) {
+      var sess = res.data.session;
+      if (sess) {
         setSession(sess);
-        loadLessonsFromDB(function(data) {
+        fetchLessons(function(data) {
           setLessons(data);
           setChecked(true);
+        });
+      } else {
+        setChecked(true);
+      }
+    });
+
+    var listener = supabase.auth.onAuthStateChange(function(event, sess) {
+      if (event === "SIGNED_IN") {
+        setSession(sess);
+        fetchLessons(function(data) {
+          setLessons(data);
         });
       } else if (event === "SIGNED_OUT") {
         setSession(null);
         setLessons({});
-        setChecked(true);
-      } else if (event === "INITIAL_SESSION") {
-        if (sess) {
-          setSession(sess);
-          loadLessonsFromDB(function(data) {
-            setLessons(data);
-            setChecked(true);
-          });
-        } else {
-          setChecked(true);
-        }
       }
     });
+
+    return function() { listener.data.subscription.unsubscribe(); };
   }, []);
 
   var handleSave = function(newL, key, data) {
