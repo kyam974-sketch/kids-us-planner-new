@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Sfondo bianco arrotondato -->
+  <rect width="512" height="512" rx="100" ry="100" fill="#ffffff"/>
+  
+  <!-- Cerchi colorati stile Kids&Us -->
+  <circle cx="130" cy="180" r="72" fill="#E94E58"/>
+  <circle cx="256" cy="150" r="72" fill="#8CB43B"/>
+  <circle cx="382" cy="180" r="72" fill="#F26522"/>
+  <circle cx="170" cy="300" r="72" fill="#FFD700"/>
+  <circle cx="342" cy="300" r="72" fill="#00B3B0"/>
+
+  <!-- Lettera P centrale bianca -->
+  <text x="256" y="345" 
+    font-family="Arial Black, sans-serif" 
+    font-size="200" 
+    font-weight="900" 
+    text-anchor="middle" 
+    fill="white"
+    opacity="0.95">P</text>
+
+  <!-- Stellina decorativa in alto a destra -->
+  <circle cx="420" cy="90" r="18" fill="#E878A0"/>
+  <circle cx="450" cy="70" r="12" fill="#FFD700"/>
+  <circle cx="445" cy="105" r="8" fill="#00B3B0"/>
+</svg>
