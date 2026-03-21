@@ -167,26 +167,31 @@ function LessonView(props) {
   };
 
   var uploadToAI = async function(files) {
-    showMsg("Scanning...");
+    setSs("Analisi in corso..."); setScn(true);
     try {
+      setSs("Caricamento immagine...");
       var b64 = await new Promise(function(resolve) {
         var rd = new FileReader();
         rd.onload = function() { resolve(rd.result.split(",")[1]); };
         rd.readAsDataURL(files[0]);
       });
+      setSs("Analisi AI in corso...");
       var promptMsg = "Extract Kids&Us lesson. Use ONLY English. Find Track or Audio and put in audio field. Target Language: Verbatim. Use [T] for Teacher, [K] for Kids. If Bonus set is_bonus true. Return JSON array: [{name,duration,audio,desc,target,materials,is_bonus}]";
       var res = await fetch("/api/generate", {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ imageB64:b64, mimeType:files[0].type || "image/jpeg", prompt:promptMsg })
       });
+      setSs("Elaborazione risultati...");
       var d = await res.json();
       var cleanText = d.text.replace(/```json|```/g, "").trim();
       var parsed = JSON.parse(cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
       saveActs(parsed);
-      showMsg("Synced!");
+      setSs("Lezione sincronizzata!");
+      setTimeout(function() { setScn(false); }, 3000);
     } catch(e) {
-      showMsg("Error: " + e.message);
+      setSs("Errore: " + e.message);
+      setTimeout(function() { setScn(false); }, 5000);
     }
   };
 
@@ -388,10 +393,27 @@ export default function App() {
 
   var handleSave = function(newL, key, data) {
     setLessons(newL);
-    supabase.from("lessons").upsert(
-      { user_id: session.user.id, key: key, data: data },
-      { onConflict: "user_id,key" }
-    );
+    supabase.auth.getSession().then(function(res) {
+      var sess = res.data.session;
+      if (!sess) {
+        setSs("Sessione scaduta - rieffettua il login");
+        setScn(true);
+        setTimeout(function() { setScn(false); }, 5000);
+        return;
+      }
+      var uid = sess.user.id;
+      supabase.from("lessons").delete().eq("user_id", uid).eq("key", key)
+        .then(function() {
+          supabase.from("lessons").insert({ user_id: uid, key: key, data: data })
+            .then(function(r) {
+              if (r.error) {
+                setSs("Errore: " + r.error.message);
+                setScn(true);
+                setTimeout(function() { setScn(false); }, 5000);
+              }
+            });
+        });
+    });
   };
 
   var showMsg = function(msg) {
@@ -418,10 +440,11 @@ export default function App() {
         setSyncing(true);
         var keys = Object.keys(parsed);
         if (keys.length === 0) { setSyncing(false); return; }
+        var uid = session.user.id;
+        await supabase.from("lessons").delete().eq("user_id", uid);
         for (var i = 0; i < keys.length; i++) {
-          await supabase.from("lessons").upsert(
-            { user_id: session.user.id, key: keys[i], data: parsed[keys[i]] },
-            { onConflict: "user_id,key" }
+          await supabase.from("lessons").insert(
+            { user_id: uid, key: keys[i], data: parsed[keys[i]] }
           );
         }
         setLessons(parsed);
