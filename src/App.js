@@ -170,6 +170,51 @@ function LessonView(props) {
     saveActs([]);
   };
 
+  var exportExcel = function() {
+    var rows = [["Inizio", "Fine", "Durata (min)", "Attivita", "Descrizione", "Materiali", "Audio"]];
+    plan.forEach(function(a) {
+      rows.push([
+        a.start || "",
+        a.end || "",
+        parseInt(a.duration) || 0,
+        safeStr(a.name),
+        safeStr(a.desc),
+        safeStr(a.materials),
+        safeStr(a.audio)
+      ]);
+    });
+    bonusActs.forEach(function(a) {
+      rows.push([
+        "BONUS", "", "",
+        safeStr(a.name),
+        safeStr(a.desc),
+        safeStr(a.materials),
+        safeStr(a.audio)
+      ]);
+    });
+
+    var maxWidths = rows[0].map(function(_, ci) {
+      return Math.max.apply(null, rows.map(function(r) { return String(r[ci] || "").length; }));
+    });
+
+    var csv = rows.map(function(row) {
+      return row.map(function(cell) {
+        var s = String(cell || "").replace(/"/g, '""');
+        return '"' + s + '"';
+      }).join(",");
+    }).join("\n");
+
+    var bom = "\uFEFF";
+    var blob = new Blob([bom + csv], { type:"text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = scName + " - Day " + sd + ".csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    showMsg("File scaricato!");
+  };
+
   var uploadToAI = async function(files) {
     setSs("Analisi in corso..."); setScn(true);
     try {
@@ -245,6 +290,7 @@ function LessonView(props) {
           React.createElement("input", { type:"time", value:startTime, onChange:function(e){ setStartTime(e.target.value); }, style:{ borderRadius:8, border:"none", padding:10, fontWeight:900, background:"#F1F2F6" } }),
           React.createElement("button", { onClick:function(){ setIsLive(!isLive); }, style:{ background:"#27AE60", color:"#fff", border:"none", padding:"10px 20px", borderRadius:12, fontWeight:800 } }, isLive ? "EDIT" : "LIVE"),
           React.createElement("button", { onClick:function(){ window.print(); }, style:{ background:"#2F3542", color:"#fff", border:"none", borderRadius:12, padding:"0 20px" } }, "PRINT"),
+          React.createElement("button", { onClick:exportExcel, style:{ background:"#00B894", color:"#fff", border:"none", borderRadius:12, padding:"0 15px", fontWeight:800 } }, "\uD83D\uDCCA CSV"),
           React.createElement("button", { onClick:function(){ if(window.confirm("Cancellare tutta la lezione?")){ clearLesson(); } }, style:{ background:"#D63031", color:"#fff", border:"none", borderRadius:12, padding:"0 15px", fontWeight:800 } }, "\uD83D\uDDD1")
         )
       ),
@@ -315,16 +361,17 @@ function LessonView(props) {
                   audio ? React.createElement("div", { style:{ background:"#FBC02D", color:"#000", display:"inline-block", padding:"2px 8px", borderRadius:5, fontSize:13, fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + audio) : null,
                   (function() {
                     if (sc.type !== "baby") { return null; }
-                    var surpriseMatch = desc.match(/draw a? ?([a-zA-Z ]+) on (your|the|their) (hand|arm|face)/i);
-                    var surpriseText = null;
-                    if (surpriseMatch) { surpriseText = surpriseMatch[0]; }
-                    else if (desc.toLowerCase().includes("surprise") || name.toLowerCase().includes("surprise")) {
-                      surpriseText = desc.slice(0, 100);
-                    }
-                    if (!surpriseText) { return null; }
-                    return React.createElement("div", { style:{ background:"#E17055", color:"#fff", borderRadius:12, padding:"12px 16px", margin:"8px 0", fontWeight:900, fontSize: isLive ? 22 : 15, boxShadow:"0 4px 12px rgba(225,112,85,0.4)" } },
-                      React.createElement("span", { style:{ fontSize: isLive ? 30 : 20, marginRight:8 } }, "\uD83C\uDF81"),
-                      "SURPRISE: " + surpriseText
+                    var hasSurprise = desc.toLowerCase().includes("surprise") || name.toLowerCase().includes("surprise") || desc.toLowerCase().includes(" draw ") || desc.toLowerCase().includes("face paint");
+                    if (!hasSurprise) { return null; }
+                    return React.createElement("div", { style:{ background:"#E17055", color:"#fff", borderRadius:12, padding:"12px 16px", margin:"8px 0", fontWeight:900, fontSize: isLive ? 22 : 15, boxShadow:"0 4px 12px rgba(225,112,85,0.4)", display:"flex", alignItems:"flex-start", gap:8 } },
+                      React.createElement("span", { style:{ fontSize: isLive ? 30 : 20, flexShrink:0 } }, "\uD83C\uDF81"),
+                      React.createElement("span", null, "SURPRISE: "),
+                      React.createElement("span", {
+                        contentEditable:true,
+                        suppressContentEditableWarning:true,
+                        style:{ outline:"none", borderBottom:"2px dashed rgba(255,255,255,0.5)", minWidth:100, fontStyle:"italic" },
+                        onBlur:function(e){ updateAct(i, "surprise", e.target.innerText); }
+                      }, a.surprise || desc.slice(0, 80))
                     );
                   })(),
                   target ? React.createElement("div", { style:{ background: isCurrent ? "#3d0000" : (isLive ? "#111" : "#F1F2F6"), padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
