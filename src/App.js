@@ -107,7 +107,7 @@ function LessonView(props) {
   var onSave = props.onSave;
 
   var s1 = useState([]); var history = s1[0]; var setHistory = s1[1];
-  var s2 = useState(null); var clipboard = s2[0]; var setClipboard = s2[1];
+  var s2 = useState(props.initialClipboard || null); var clipboard = s2[0]; var setClipboard = s2[1];
   var s3 = useState(false); var isLive = s3[0]; var setIsLive = s3[1];
   var s4 = useState("16:30"); var startTime = s4[0]; var setStartTime = s4[1];
   var s5 = useState(new Date()); var now = s5[0]; var setNow = s5[1];
@@ -354,6 +354,7 @@ export default function App() {
   var s8 = useState(false); var scn = s8[0]; var setScn = s8[1];
   var s9 = useState(""); var ss = s9[0]; var setSs = s9[1];
   var s10 = useState(false); var syncing = s10[0]; var setSyncing = s10[1];
+  var s11 = useState(null); var appClipboard = s11[0]; var setAppClipboard = s11[1];
   var importRef = useRef(null);
 
   var fetchLessons = function(callback) {
@@ -474,7 +475,9 @@ export default function App() {
       lessons:lessons,
       userId:session.user.id,
       onBack:function(){ setView("course"); },
-      onSave:handleSave
+      onSave:handleSave,
+      initialClipboard:appClipboard,
+      onClipboardChange:setAppClipboard
     });
   }
 
@@ -490,18 +493,19 @@ export default function App() {
           rd.readAsDataURL(files[0]);
         });
         setSs("AI sta leggendo la routine...");
-        var promptMsg = "Extract the warm-up/opening routine text from this Kids&Us teacher guide page. Return ONLY the plain text of the routine, preserving the structure. Include all teacher instructions, songs, and dialogue. Do not add any JSON or formatting.";
+        var promptMsg = "Extract Kids&Us warm-up routines from this teacher guide page. Use ONLY English. Find Track or Audio and put in audio field. Target Language: Verbatim. Use [T] for Teacher, [K] for Kids. Return JSON array: [{name,duration,audio,desc,target,materials,is_bonus}]";
         var res = await fetch("/api/generate", {
           method:"POST",
           headers:{ "Content-Type":"application/json" },
           body: JSON.stringify({ imageB64:b64, mimeType:files[0].type || "image/jpeg", prompt:promptMsg })
         });
         var d = await res.json();
-        var routineText = d.text.trim();
+        var cleanText = d.text.replace(/```json|```/g, "").trim();
+        var parsed = JSON.parse(cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
         var routineKey = sc.id + "|routine|" + p;
         var newL = Object.assign({}, lessons);
-        newL[routineKey] = routineText;
-        handleSave(newL, routineKey, routineText);
+        newL[routineKey] = parsed;
+        handleSave(newL, routineKey, parsed);
         setSs("Routine salvata!");
         setTimeout(function() { setScn(false); }, 3000);
       } catch(e) {
@@ -510,16 +514,14 @@ export default function App() {
       }
     };
 
-    var copyRoutine = function(p) {
+    var copyRoutineToClipboard = function(p) {
       var routineKey = sc.id + "|routine|" + p;
-      var text = lessons[routineKey];
-      if (!text) { return; }
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(function() {
-          setSs("Routine copiata!"); setScn(true);
-          setTimeout(function() { setScn(false); }, 2000);
-        });
-      }
+      var acts = lessons[routineKey];
+      if (!acts || !Array.isArray(acts) || acts.length === 0) { return; }
+      setAppClipboard(acts[0]);
+      setSs("Prima routine copiata nel clipboard - usa PASTE nella lezione!");
+      setScn(true);
+      setTimeout(function() { setScn(false); }, 3000);
     };
 
     return React.createElement("div", { style:{ minHeight:"100vh", background:"#F4F7F6", fontFamily:"sans-serif" } },
@@ -536,9 +538,9 @@ export default function App() {
               React.createElement("b", { style:{ fontSize:16 } }, p),
               React.createElement("div", { style:{ display:"flex", gap:8 } },
                 hasRoutine ? React.createElement("button", {
-                  onClick: function() { copyRoutine(p); },
+                  onClick: function() { copyRoutineToClipboard(p); },
                   style:{ background:"#0984E3", color:"#fff", border:"none", borderRadius:8, padding:"5px 12px", fontWeight:700, fontSize:12, cursor:"pointer" }
-                }, "\uD83D\uDCCB Copia") : null,
+                }, "\uD83D\uDCCB Copia in clipboard") : null,
                 React.createElement("button", {
                   onClick: function() { ref.current.click(); },
                   style:{ background: hasRoutine ? "#636e72" : sc.color, color:"#fff", border:"none", borderRadius:8, padding:"5px 12px", fontWeight:700, fontSize:12, cursor:"pointer" }
@@ -546,9 +548,14 @@ export default function App() {
                 React.createElement("input", { type:"file", ref:ref, style:{ display:"none" }, onChange: function(e) { scanRoutine(p, e.target); } })
               )
             ),
-            hasRoutine ? React.createElement("div", {
-              style:{ background:"#F0F9FF", border:"1px solid #B3D9F7", borderRadius:12, padding:12, fontSize:12, color:"#2D3436", marginBottom:10, maxHeight:80, overflow:"hidden", whiteSpace:"pre-wrap" }
-            }, routineText.slice(0, 200) + (routineText.length > 200 ? "..." : "")) : null,
+            hasRoutine && Array.isArray(lessons[routineKey]) ? React.createElement("div", {
+              style:{ background:"#F0F9FF", border:"1px solid #B3D9F7", borderRadius:12, padding:12, fontSize:12, color:"#2D3436", marginBottom:10 }
+            }, lessons[routineKey].map(function(act, ai) {
+              return React.createElement("div", { key:ai, style:{ padding:"3px 0", borderBottom: ai < lessons[routineKey].length-1 ? "1px solid #DDD" : "none" } },
+                React.createElement("span", { style:{ fontWeight:700 } }, act.name || "Activity"),
+                act.duration ? React.createElement("span", { style:{ color:"#636e72", marginLeft:8 } }, act.duration + " min") : null
+              );
+            })) : null,
             React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:10 } },
               Array.from({ length:10 }, function(_, i) {
                 var dayKey = sc.id + "|" + p + "|" + (i+1);
