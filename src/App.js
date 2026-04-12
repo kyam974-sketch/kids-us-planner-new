@@ -479,14 +479,77 @@ export default function App() {
   }
 
   if (view === "course" && sc) {
+    var scanRoutine = async function(p, fileInput) {
+      var files = fileInput.files;
+      if (!files || !files[0]) { return; }
+      setSs("Analisi routine in corso..."); setScn(true);
+      try {
+        var b64 = await new Promise(function(resolve) {
+          var rd = new FileReader();
+          rd.onload = function() { resolve(rd.result.split(",")[1]); };
+          rd.readAsDataURL(files[0]);
+        });
+        setSs("AI sta leggendo la routine...");
+        var promptMsg = "Extract the warm-up/opening routine text from this Kids&Us teacher guide page. Return ONLY the plain text of the routine, preserving the structure. Include all teacher instructions, songs, and dialogue. Do not add any JSON or formatting.";
+        var res = await fetch("/api/generate", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ imageB64:b64, mimeType:files[0].type || "image/jpeg", prompt:promptMsg })
+        });
+        var d = await res.json();
+        var routineText = d.text.trim();
+        var routineKey = sc.id + "|routine|" + p;
+        var newL = Object.assign({}, lessons);
+        newL[routineKey] = routineText;
+        handleSave(newL, routineKey, routineText);
+        setSs("Routine salvata!");
+        setTimeout(function() { setScn(false); }, 3000);
+      } catch(e) {
+        setSs("Errore: " + e.message);
+        setTimeout(function() { setScn(false); }, 5000);
+      }
+    };
+
+    var copyRoutine = function(p) {
+      var routineKey = sc.id + "|routine|" + p;
+      var text = lessons[routineKey];
+      if (!text) { return; }
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+          setSs("Routine copiata!"); setScn(true);
+          setTimeout(function() { setScn(false); }, 2000);
+        });
+      }
+    };
+
     return React.createElement("div", { style:{ minHeight:"100vh", background:"#F4F7F6", fontFamily:"sans-serif" } },
       React.createElement("div", { style:{ maxWidth:650, margin:"0 auto", padding:25 } },
         React.createElement("button", { onClick:function(){ setView("home"); }, style:{ background:"none", border:"none", fontWeight:900, color:sc.color, fontSize:16 } }, "\u2190 BACK"),
         React.createElement("h1", { style:{ color:sc.color } }, sc.name),
         ["Story 1","Story 2","Story 3","Story 4"].map(function(p) {
+          var routineKey = sc.id + "|routine|" + p;
+          var hasRoutine = !!lessons[routineKey];
+          var routineText = hasRoutine ? lessons[routineKey] : "";
+          var ref = React.createRef();
           return React.createElement("div", { key:p, style:{ background:"#fff", padding:20, borderRadius:25, marginBottom:15, color:"#333" } },
-            React.createElement("b", null, p),
-            React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:10, marginTop:10 } },
+            React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 } },
+              React.createElement("b", { style:{ fontSize:16 } }, p),
+              React.createElement("div", { style:{ display:"flex", gap:8 } },
+                hasRoutine ? React.createElement("button", {
+                  onClick: function() { copyRoutine(p); },
+                  style:{ background:"#0984E3", color:"#fff", border:"none", borderRadius:8, padding:"5px 12px", fontWeight:700, fontSize:12, cursor:"pointer" }
+                }, "\uD83D\uDCCB Copia") : null,
+                React.createElement("button", {
+                  onClick: function() { ref.current.click(); },
+                  style:{ background: hasRoutine ? "#636e72" : sc.color, color:"#fff", border:"none", borderRadius:8, padding:"5px 12px", fontWeight:700, fontSize:12, cursor:"pointer" }
+                }, hasRoutine ? "\uD83D\uDCF8 Aggiorna" : "\uD83D\uDCF8 Scan routine"),
+                React.createElement("input", { type:"file", ref:ref, style:{ display:"none" }, onChange: function(e) { scanRoutine(p, e.target); } })
+              )
+            ),
+            hasRoutine ? React.createElement("div", {
+              style:{ background:"#F0F9FF", border:"1px solid #B3D9F7", borderRadius:12, padding:12, fontSize:12, color:"#2D3436", marginBottom:10, maxHeight:80, overflow:"hidden", whiteSpace:"pre-wrap" }
+            }, routineText.slice(0, 200) + (routineText.length > 200 ? "..." : "")) : null,
+            React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:10 } },
               Array.from({ length:10 }, function(_, i) {
                 var dayKey = sc.id + "|" + p + "|" + (i+1);
                 return React.createElement("button", {
@@ -498,7 +561,8 @@ export default function App() {
             )
           );
         })
-      )
+      ),
+      scn ? React.createElement("div", { style:{ position:"fixed", bottom:30, left:"50%", transform:"translateX(-50%)", background:"#2F3542", color:"#fff", padding:"15px 30px", borderRadius:50, fontWeight:900, zIndex:10000 } }, ss) : null
     );
   }
 
