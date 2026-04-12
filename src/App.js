@@ -313,6 +313,11 @@ function LessonView(props) {
                     )
                   ),
                   audio ? React.createElement("div", { style:{ background:"#FBC02D", color:"#000", display:"inline-block", padding:"2px 8px", borderRadius:5, fontSize:13, fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + audio) : null,
+                  (sc.type === "baby" && name.toLowerCase().includes("surprise")) ? React.createElement("div", { style:{ background:"#E17055", color:"#fff", borderRadius:12, padding:"10px 16px", margin:"8px 0", fontWeight:900, fontSize: isLive ? 22 : 16, textAlign:"center", boxShadow:"0 4px 12px rgba(225,112,85,0.4)" } },
+                    React.createElement("span", { style:{ fontSize: isLive ? 28 : 18 } }, "\uD83C\uDF81 "),
+                    "SURPRISE: ",
+                    React.createElement("span", { style:{ fontStyle:"italic" } }, desc || "da definire")
+                  ) : null,
                   target ? React.createElement("div", { style:{ background: isCurrent ? "#3d0000" : (isLive ? "#111" : "#F1F2F6"), padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
                     target.split("[K]").map(function(part, idx){
                       return React.createElement("span", { key:idx, className: idx === 0 ? "t-phrase" : "k-phrase" }, part.replace("[T]","").replace("[K]","").trim());
@@ -552,7 +557,7 @@ export default function App() {
                 return React.createElement("button", {
                   key:i,
                   onClick:function(){ setSp(p); setSd(i+1); setView("lesson"); },
-                  style:{ padding:15, borderRadius:12, border:"1px solid #EEE", background: lessons[dayKey] ? "#E8F5E9" : "#FFF", fontWeight:700 }
+                  style:{ padding:15, borderRadius:12, border:"1px solid #EEE", background: (lessons[dayKey] && Array.isArray(lessons[dayKey]) && lessons[dayKey].length > 0) ? "#E8F5E9" : "#FFF", fontWeight:700 }
                 }, i+1);
               })
             )
