@@ -482,18 +482,19 @@ export default function App() {
   }
 
   if (view === "course" && sc) {
-    var scanRoutine = async function(p, fileInput) {
+    var scanRoutine = async function(p, fileInput, type) {
       var files = fileInput.files;
       if (!files || !files[0]) { return; }
-      setSs("Analisi routine in corso..."); setScn(true);
+      var label = type === "goodbye" ? "Goodbye" : "Welcome";
+      setSs("Analisi " + label + " routine..."); setScn(true);
       try {
         var b64 = await new Promise(function(resolve) {
           var rd = new FileReader();
           rd.onload = function() { resolve(rd.result.split(",")[1]); };
           rd.readAsDataURL(files[0]);
         });
-        setSs("AI sta leggendo la routine...");
-        var promptMsg = "Extract Kids&Us warm-up routines from this teacher guide page. Use ONLY English. Find Track or Audio and put in audio field. Target Language: Verbatim. Use [T] for Teacher, [K] for Kids. Return JSON array: [{name,duration,audio,desc,target,materials,is_bonus}]";
+        setSs("AI sta leggendo la " + label + " routine...");
+        var promptMsg = "Extract Kids&Us " + label + " routines from this teacher guide page. Use ONLY English. Find Track or Audio and put in audio field. Target Language: Verbatim. Use [T] for Teacher, [K] for Kids. Return JSON array: [{name,duration,audio,desc,target,materials,is_bonus}]";
         var res = await fetch("/api/generate", {
           method:"POST",
           headers:{ "Content-Type":"application/json" },
@@ -502,11 +503,11 @@ export default function App() {
         var d = await res.json();
         var cleanText = d.text.replace(/```json|```/g, "").trim();
         var parsed = JSON.parse(cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
-        var routineKey = sc.id + "|routine|" + p;
+        var routineKey = sc.id + "|routine-" + (type || "welcome") + "|" + p;
         var newL = Object.assign({}, lessons);
         newL[routineKey] = parsed;
         handleSave(newL, routineKey, parsed);
-        setSs("Routine salvata!");
+        setSs(label + " routine salvata!");
         setTimeout(function() { setScn(false); }, 3000);
       } catch(e) {
         setSs("Errore: " + e.message);
@@ -529,10 +530,12 @@ export default function App() {
         React.createElement("button", { onClick:function(){ setView("home"); }, style:{ background:"none", border:"none", fontWeight:900, color:sc.color, fontSize:16 } }, "\u2190 BACK"),
         React.createElement("h1", { style:{ color:sc.color } }, sc.name),
         ["Story 1","Story 2","Story 3","Story 4"].map(function(p) {
-          var routineKey = sc.id + "|routine|" + p;
+          var routineKey = sc.id + "|routine-welcome|" + p;
+          var goodbyeKey = sc.id + "|routine-goodbye|" + p;
           var hasRoutine = !!lessons[routineKey];
-          var routineText = hasRoutine ? lessons[routineKey] : "";
+          var hasGoodbye = !!lessons[goodbyeKey];
           var ref = React.createRef();
+          var refGoodbye = React.createRef();
           return React.createElement("div", { key:p, style:{ background:"#fff", padding:20, borderRadius:25, marginBottom:15, color:"#333" } },
             React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 } },
               React.createElement("b", { style:{ fontSize:16 } }, p),
@@ -541,29 +544,42 @@ export default function App() {
                 React.createElement("button", {
                   onClick: function() { ref.current.click(); },
                   style:{ background: hasRoutine ? "#636e72" : sc.color, color:"#fff", border:"none", borderRadius:8, padding:"5px 12px", fontWeight:700, fontSize:12, cursor:"pointer" }
-                }, hasRoutine ? "\uD83D\uDCF8 Aggiorna" : "\uD83D\uDCF8 Scan routine"),
-                React.createElement("input", { type:"file", ref:ref, style:{ display:"none" }, onChange: function(e) { scanRoutine(p, e.target); } })
+                }, hasRoutine ? "\uD83D\uDCF8 Welcome" : "\uD83D\uDCF8 Scan welcome"),
+                React.createElement("input", { type:"file", ref:ref, style:{ display:"none" }, onChange: function(e) { scanRoutine(p, e.target, "welcome"); } }),
+                React.createElement("button", {
+                  onClick: function() { refGoodbye.current.click(); },
+                  style:{ background: hasGoodbye ? "#636e72" : "#6c5ce7", color:"#fff", border:"none", borderRadius:8, padding:"5px 12px", fontWeight:700, fontSize:12, cursor:"pointer" }
+                }, hasGoodbye ? "\uD83C\uDF19 Goodbye" : "\uD83C\uDF19 Scan goodbye"),
+                React.createElement("input", { type:"file", ref:refGoodbye, style:{ display:"none" }, onChange: function(e) { scanRoutine(p, e.target, "goodbye"); } })
               )
             ),
-            hasRoutine && Array.isArray(lessons[routineKey]) ? React.createElement("div", {
-              style:{ background:"#F0F9FF", border:"1px solid #B3D9F7", borderRadius:12, padding:12, fontSize:12, color:"#2D3436", marginBottom:10 }
-            }, lessons[routineKey].map(function(act, ai) {
-              return React.createElement("div", { key:ai, style:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom: ai < lessons[routineKey].length-1 ? "1px solid #DDD" : "none" } },
-                React.createElement("div", null,
-                  React.createElement("span", { style:{ fontWeight:700 } }, act.name || "Activity"),
-                  act.duration ? React.createElement("span", { style:{ color:"#636e72", marginLeft:8 } }, act.duration + " min") : null
-                ),
-                React.createElement("button", {
-                  onClick: function() {
-                    setAppClipboard(act);
-                    setSs("\uD83D\uDCCB " + (act.name || "Attivita") + " copiata!");
-                    setScn(true);
-                    setTimeout(function() { setScn(false); }, 2000);
-                  },
-                  style:{ background:"#0984E3", color:"#fff", border:"none", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }
-                }, "\uD83D\uDCCB Copia")
+            [
+              { key: routineKey, label: "Welcome", color: "#F0F9FF", border: "#B3D9F7" },
+              { key: goodbyeKey, label: "Goodbye", color: "#F5F0FF", border: "#C9B3F7" }
+            ].map(function(section) {
+              var acts = lessons[section.key];
+              if (!acts || !Array.isArray(acts)) { return null; }
+              return React.createElement("div", { key: section.key, style:{ background: section.color, border:"1px solid " + section.border, borderRadius:12, padding:12, fontSize:12, color:"#2D3436", marginBottom:10 } },
+                React.createElement("div", { style:{ fontWeight:900, fontSize:11, color:"#636e72", marginBottom:6, letterSpacing:1 } }, section.label.toUpperCase() + " ROUTINE"),
+                acts.map(function(act, ai) {
+                  return React.createElement("div", { key:ai, style:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom: ai < acts.length-1 ? "1px solid #DDD" : "none" } },
+                    React.createElement("div", null,
+                      React.createElement("span", { style:{ fontWeight:700 } }, act.name || "Activity"),
+                      act.duration ? React.createElement("span", { style:{ color:"#636e72", marginLeft:8 } }, act.duration + " min") : null
+                    ),
+                    React.createElement("button", {
+                      onClick: function() {
+                        setAppClipboard(act);
+                        setSs("\uD83D\uDCCB " + (act.name || "Attivita") + " copiata!");
+                        setScn(true);
+                        setTimeout(function() { setScn(false); }, 2000);
+                      },
+                      style:{ background:"#0984E3", color:"#fff", border:"none", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }
+                    }, "\uD83D\uDCCB Copia")
+                  );
+                })
               );
-            })) : null,
+            }),
             React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:10 } },
               Array.from({ length:10 }, function(_, i) {
                 var dayKey = sc.id + "|" + p + "|" + (i+1);
