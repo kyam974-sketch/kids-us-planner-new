@@ -537,10 +537,7 @@ export default function App() {
             React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 } },
               React.createElement("b", { style:{ fontSize:16 } }, p),
               React.createElement("div", { style:{ display:"flex", gap:8 } },
-                hasRoutine ? React.createElement("button", {
-                  onClick: function() { copyRoutineToClipboard(p); },
-                  style:{ background:"#0984E3", color:"#fff", border:"none", borderRadius:8, padding:"5px 12px", fontWeight:700, fontSize:12, cursor:"pointer" }
-                }, "\uD83D\uDCCB Copia in clipboard") : null,
+
                 React.createElement("button", {
                   onClick: function() { ref.current.click(); },
                   style:{ background: hasRoutine ? "#636e72" : sc.color, color:"#fff", border:"none", borderRadius:8, padding:"5px 12px", fontWeight:700, fontSize:12, cursor:"pointer" }
@@ -551,9 +548,20 @@ export default function App() {
             hasRoutine && Array.isArray(lessons[routineKey]) ? React.createElement("div", {
               style:{ background:"#F0F9FF", border:"1px solid #B3D9F7", borderRadius:12, padding:12, fontSize:12, color:"#2D3436", marginBottom:10 }
             }, lessons[routineKey].map(function(act, ai) {
-              return React.createElement("div", { key:ai, style:{ padding:"3px 0", borderBottom: ai < lessons[routineKey].length-1 ? "1px solid #DDD" : "none" } },
-                React.createElement("span", { style:{ fontWeight:700 } }, act.name || "Activity"),
-                act.duration ? React.createElement("span", { style:{ color:"#636e72", marginLeft:8 } }, act.duration + " min") : null
+              return React.createElement("div", { key:ai, style:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom: ai < lessons[routineKey].length-1 ? "1px solid #DDD" : "none" } },
+                React.createElement("div", null,
+                  React.createElement("span", { style:{ fontWeight:700 } }, act.name || "Activity"),
+                  act.duration ? React.createElement("span", { style:{ color:"#636e72", marginLeft:8 } }, act.duration + " min") : null
+                ),
+                React.createElement("button", {
+                  onClick: function() {
+                    setAppClipboard(act);
+                    setSs("\uD83D\uDCCB " + (act.name || "Attivita") + " copiata!");
+                    setScn(true);
+                    setTimeout(function() { setScn(false); }, 2000);
+                  },
+                  style:{ background:"#0984E3", color:"#fff", border:"none", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }
+                }, "\uD83D\uDCCB Copia")
               );
             })) : null,
             React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:10 } },
