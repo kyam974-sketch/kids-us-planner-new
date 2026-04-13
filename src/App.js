@@ -279,7 +279,7 @@ function LessonView(props) {
 
   return React.createElement(ErrorBoundary, null,
     React.createElement("div", {
-      style: { minHeight:"100vh", background: isLive ? "#000" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
+      style: { minHeight:"100vh", background: isLive ? "#1E90FF" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
     },
       React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}"),
 
