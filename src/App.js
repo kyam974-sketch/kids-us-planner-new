@@ -113,6 +113,11 @@ function LessonView(props) {
   var s5 = useState(new Date()); var now = s5[0]; var setNow = s5[1];
   var s6 = useState(false); var scn = s6[0]; var setScn = s6[1];
   var s7 = useState(""); var ss = s7[0]; var setSs = s7[1];
+  var s8 = useState(false); var isPlaying = s8[0]; var setIsPlaying = s8[1];
+  var s9 = useState(-1); var playingAct = s9[0]; var setPlayingAct = s9[1];
+  var s10 = useState(-1); var playingPhrase = s10[0]; var setPlayingPhrase = s10[1];
+  var audioRef = useRef(null);
+  var stopRef = useRef(false);
   var fr = useRef(null);
 
   useEffect(function() {
@@ -153,6 +158,70 @@ function LessonView(props) {
     newArr[idx] = Object.assign({}, newArr[idx]);
     newArr[idx][field] = val;
     saveActs(newArr);
+  };
+
+  var playLesson = async function() {
+    if (isPlaying) {
+      stopRef.current = true;
+      setIsPlaying(false);
+      setPlayingAct(-1);
+      setPlayingPhrase(-1);
+      if (audioRef.current) { audioRef.current.pause(); }
+      return;
+    }
+    stopRef.current = false;
+    setIsPlaying(true);
+    showMsg("Caricamento audio...");
+
+    var allPhrases = [];
+    plan.forEach(function(a, ai) {
+      var target = safeStr(a.target);
+      if (!target) { return; }
+      var parts = target.split("[K]");
+      parts.forEach(function(part, idx) {
+        var text = part.replace("[T]","").replace("[K]","").trim();
+        if (text.length > 2) {
+          allPhrases.push({ ai: ai, pi: idx, role: idx === 0 ? "T" : "K", text: text });
+        }
+      });
+    });
+
+    for (var i = 0; i < allPhrases.length; i++) {
+      if (stopRef.current) { break; }
+      var ph = allPhrases[i];
+      setPlayingAct(ph.ai);
+      setPlayingPhrase(i);
+
+      try {
+        var res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: ph.text, role: ph.role })
+        });
+        var data = await res.json();
+        if (data.audioContent) {
+          await new Promise(function(resolve) {
+            if (stopRef.current) { resolve(); return; }
+            var audio = new Audio("data:audio/mp3;base64," + data.audioContent);
+            audioRef.current = audio;
+            audio.onended = resolve;
+            audio.onerror = resolve;
+            audio.play();
+          });
+          await new Promise(function(r) { setTimeout(r, ph.role === "T" ? 300 : 500); });
+        }
+      } catch(e) {
+        console.error("TTS error:", e);
+      }
+    }
+
+    if (!stopRef.current) {
+      showMsg("Lezione completata!");
+    }
+    setIsPlaying(false);
+    setPlayingAct(-1);
+    setPlayingPhrase(-1);
+    stopRef.current = false;
   };
 
   var addActivity = function(item) {
@@ -279,7 +348,7 @@ function LessonView(props) {
 
   return React.createElement(ErrorBoundary, null,
     React.createElement("div", {
-      style: { minHeight:"100vh", background: isLive ? "#1E90FF" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
+      style: { minHeight:"100vh", background: isLive ? "#000" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
     },
       React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}"),
 
@@ -289,6 +358,7 @@ function LessonView(props) {
           React.createElement("button", { onClick:undo, style:{ background:"#f1f2f6", border:"none", borderRadius:10, padding:"0 15px", fontWeight:800 } }, "UNDO"),
           React.createElement("input", { type:"time", value:startTime, onChange:function(e){ setStartTime(e.target.value); }, style:{ borderRadius:8, border:"none", padding:10, fontWeight:900, background:"#F1F2F6" } }),
           React.createElement("button", { onClick:function(){ setIsLive(!isLive); }, style:{ background:"#27AE60", color:"#fff", border:"none", padding:"10px 20px", borderRadius:12, fontWeight:800 } }, isLive ? "EDIT" : "LIVE"),
+          React.createElement("button", { onClick:playLesson, style:{ background: isPlaying ? "#E17055" : "#6c5ce7", color:"#fff", border:"none", padding:"10px 16px", borderRadius:12, fontWeight:800 } }, isPlaying ? "\u23F9 Stop" : "\uD83D\uDD0A Play"),
           React.createElement("button", { onClick:function(){ window.print(); }, style:{ background:"#2F3542", color:"#fff", border:"none", borderRadius:12, padding:"0 20px" } }, "PRINT"),
           React.createElement("button", { onClick:exportExcel, style:{ background:"#00B894", color:"#fff", border:"none", borderRadius:12, padding:"0 15px", fontWeight:800 } }, "\uD83D\uDCCA CSV"),
           React.createElement("button", { onClick:function(){ if(window.confirm("Cancellare tutta la lezione?")){ clearLesson(); } }, style:{ background:"#D63031", color:"#fff", border:"none", borderRadius:12, padding:"0 15px", fontWeight:800 } }, "\uD83D\uDDD1")
@@ -301,7 +371,7 @@ function LessonView(props) {
       ),
 
       React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
-        React.createElement("div", { style:{ background: isLive ? "#000080" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35 } },
+        React.createElement("div", { style:{ background: isLive ? "#000" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35 } },
           React.createElement("h1", { style:{ color:scColor, margin:0 } }, scName + " - Day " + sd),
           React.createElement("div", { style:{ fontWeight:900, color: totalMinutes > scLimit ? "#D63031" : "#00B894", fontSize:18 } }, "TOTAL: " + totalMinutes + " / " + scLimit + " min"),
 
@@ -374,9 +444,10 @@ function LessonView(props) {
                       }, a.surprise || desc.slice(0, 80))
                     );
                   })(),
-                  target ? React.createElement("div", { style:{ background: isCurrent ? "#3d0000" : (isLive ? "#111" : "#F1F2F6"), padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
+                  target ? React.createElement("div", { style:{ background: isCurrent ? "#3d0000" : (isLive ? "#111" : "#F1F2F6"), padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:!isPlaying, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
                     target.split("[K]").map(function(part, idx){
-                      return React.createElement("span", { key:idx, className: idx === 0 ? "t-phrase" : "k-phrase" }, part.replace("[T]","").replace("[K]","").trim());
+                      var highlighted = isPlaying && playingAct === i;
+                      return React.createElement("span", { key:idx, className: idx === 0 ? "t-phrase" : "k-phrase", style:{ outline: highlighted ? "2px solid #FF7675" : "none", borderRadius:4 } }, part.replace("[T]","").replace("[K]","").trim());
                     })
                   ) : null,
                   desc ? React.createElement("p", { style:{ fontSize: isLive ? 20 : 16, margin:"10px 0" }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "desc", e.target.innerText); } }, desc) : null,
