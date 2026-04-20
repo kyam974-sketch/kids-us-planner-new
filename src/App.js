@@ -309,36 +309,63 @@ function LessonView(props) {
           !isLive && React.createElement("div", { style:{ background:"#F8F9FA", padding:20, borderRadius:20, margin:"25px 0", border:"1px solid #E9ECEF" } },
             React.createElement("b", { style:{ fontSize:11, color:"#A4B0BE", letterSpacing:1 } }, "MATERIALS CHECKLIST:"),
             React.createElement("div", { style:{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10, alignItems:"center" } },
-              Array.from(new Set(
-                curL.map(function(a){ return safeStr(a.materials); })
-                  .filter(function(m){ return m && !m.toLowerCase().includes("audio") && !m.toLowerCase().includes("track"); })
-                  .join(", ").split(",")
-                  .map(function(m){ return m.trim(); })
-                  .filter(function(m){ return m !== ""; })
-              )).map(function(m, ci){
-                return React.createElement("label", { key:ci, style:{ fontSize:13, fontWeight:700, background:"#FFF", padding:"5px 10px", borderRadius:8, border:"1px solid #DDD", cursor:"pointer", display:"flex", alignItems:"center", gap:4 } },
-                  React.createElement("input", { type:"checkbox", style:{ marginRight:4 } }),
-                  m.trim()
-                );
-              }),
-              React.createElement("input", {
-                type:"text", placeholder:"+ aggiungi...",
-                style:{ fontSize:12, border:"1px dashed #CCC", borderRadius:8, padding:"4px 10px", color:"#636e72", width:110 },
-                onKeyDown:function(e){
-                  if (e.key === "Enter" && e.target.value.trim()) {
-                    var newMat = e.target.value.trim();
+              (function(){
+                var allMats = Array.from(new Set(
+                  curL.map(function(a){ return safeStr(a.materials); })
+                    .filter(function(m){ return m && !m.toLowerCase().includes("audio") && !m.toLowerCase().includes("track"); })
+                    .join(", ").split(",")
+                    .map(function(m){ return m.trim(); })
+                    .filter(function(m){ return m !== ""; })
+                ));
+                var removeMat = function(matToRemove) {
+                  var newArr = curL.map(function(act) {
+                    var mats = safeStr(act.materials).split(",").map(function(m){ return m.trim(); }).filter(function(m){ return m && m !== matToRemove; });
+                    return Object.assign({}, act, { materials: mats.join(", ") });
+                  });
+                  saveActs(newArr);
+                };
+                var renameMat = function(oldMat, newMat) {
+                  if (!newMat.trim() || newMat === oldMat) { return; }
+                  var newArr = curL.map(function(act) {
+                    var mats = safeStr(act.materials).split(",").map(function(m){
+                      var t = m.trim();
+                      return t === oldMat ? newMat.trim() : t;
+                    }).filter(function(m){ return m; });
+                    return Object.assign({}, act, { materials: mats.join(", ") });
+                  });
+                  saveActs(newArr);
+                };
+                return allMats.map(function(m, ci){
+                  return React.createElement("div", { key:ci, style:{ display:"flex", alignItems:"center", gap:4, background:"#FFF", padding:"4px 10px", borderRadius:8, border:"1px solid #DDD" } },
+                    React.createElement("input", { type:"checkbox" }),
+                    React.createElement("span", {
+                      contentEditable:true, suppressContentEditableWarning:true,
+                      style:{ fontSize:13, fontWeight:700, outline:"none", minWidth:20 },
+                      onBlur:function(e){ renameMat(m, e.target.innerText); }
+                    }, m),
+                    React.createElement("span", {
+                      onClick:function(){ removeMat(m); },
+                      style:{ cursor:"pointer", color:"#D63031", fontWeight:900, fontSize:14, marginLeft:2, lineHeight:1 }
+                    }, "×")
+                  );
+                });
+              })(),
+              React.createElement("button", {
+                onClick:function(){
+                  var newMat = window.prompt("Nuovo materiale:");
+                  if (newMat && newMat.trim()) {
                     var newArr = curL.map(function(act, ai) {
                       if (ai === 0) {
                         var mats = safeStr(act.materials);
-                        return Object.assign({}, act, { materials: mats ? mats + ", " + newMat : newMat });
+                        return Object.assign({}, act, { materials: mats ? mats + ", " + newMat.trim() : newMat.trim() });
                       }
                       return act;
                     });
                     saveActs(newArr);
-                    e.target.value = "";
                   }
-                }
-              })
+                },
+                style:{ fontSize:13, fontWeight:900, background:scColor, color:"#fff", border:"none", borderRadius:8, padding:"5px 12px", cursor:"pointer" }
+              }, "+ Aggiungi")
             )
           ),
 
@@ -352,17 +379,27 @@ function LessonView(props) {
               var duration = a.duration || 0;
               var isCurrent = isLive && i === currentActIdx;
 
+              var pctFill = 0;
+              if (isCurrent && isLive) {
+                var _start = timeToMins(a.start);
+                var _end = timeToMins(a.end);
+                var _total = _end - _start;
+                var _elapsed = Math.max(0, Math.min(_total, nowMins - _start));
+                pctFill = _total > 0 ? Math.round((_elapsed / _total) * 100) : 0;
+              }
               return React.createElement("div", {
                 key:i,
                 style:{
                   display:"flex", gap:30, paddingBottom:40, paddingTop: isCurrent ? 20 : 0,
                   borderLeft: isCurrent ? "12px solid #FF7675" : "8px solid " + scColor,
                   paddingLeft:30,
-                  background: isCurrent ? "#BBDEFB" : "transparent",
+                  background: isCurrent
+                    ? "linear-gradient(to right, rgba(255,118,117,0.18) " + pctFill + "%, #BBDEFB " + pctFill + "%)"
+                    : "transparent",
                   borderRadius: isCurrent ? 16 : 0,
                   marginBottom: isCurrent ? 10 : 0,
                   boxShadow: isCurrent ? "0 0 20px rgba(25,118,210,0.3)" : "none",
-                  transition:"all 0.5s"
+                  transition:"background 30s linear"
                 }
               },
                 React.createElement("div", { style:{ minWidth:90, fontWeight:900, color: isCurrent ? "#FF7675" : scColor, fontSize:22 } },
@@ -375,8 +412,8 @@ function LessonView(props) {
                     !isLive && React.createElement("div", { style:{ display:"flex", gap:8 } },
                       React.createElement("button", { onClick:function(){ setClipboard(a); showMsg("Copied!"); }, style:{ border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5 } }, "COPY"),
                       React.createElement("input", { type:"text", placeholder:"Audio", value:audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
-                      React.createElement("div", { style:{ display:"flex", alignItems:"center", background:"#EEE", borderRadius:5, padding:"0 5px", minWidth:60 } },
-                        React.createElement("input", { type:"number", value:String(duration), onChange:function(e){ updateAct(i, "duration", e.target.value); }, style:{ width:40, border:"none", background:"transparent", textAlign:"center", fontWeight:900, fontSize:14, color:"#2D3436" } }),
+                      React.createElement("div", { style:{ display:"flex", alignItems:"center", background:"#EEE", borderRadius:5, padding:"0 5px", minWidth:65 } },
+                        React.createElement("input", { type:"number", defaultValue:parseInt(duration)||0, key:"dur-"+i+"-"+parseInt(duration), onChange:function(e){ updateAct(i, "duration", parseInt(e.target.value)||0); }, style:{ width:38, border:"none", background:"transparent", textAlign:"center", fontWeight:900, fontSize:15, color:"#2D3436" } }),
                         React.createElement("span", { style:{ fontSize:12, fontWeight:700, color:"#636e72" } }, "min")
                       ),
                       React.createElement("button", { onClick:function(){ deleteAct(i); }, style:{ border:"none", background:"none", fontSize:20, color:"#D63031" } }, "\u2715")
@@ -417,23 +454,7 @@ function LessonView(props) {
                       })
                     );
                   })() : null,
-                  isCurrent && isLive ? (function(){
-                    var startMins = timeToMins(a.start);
-                    var endMins = timeToMins(a.end);
-                    var total = endMins - startMins;
-                    var elapsed = Math.max(0, Math.min(total, nowMins - startMins));
-                    var pct = total > 0 ? Math.round((elapsed / total) * 100) : 0;
-                    var remaining = total - elapsed;
-                    return React.createElement("div", { style:{ margin:"12px 0 4px 0" } },
-                      React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", fontSize:12, fontWeight:700, color:"#FF7675", marginBottom:4 } },
-                        React.createElement("span", null, "⏱ " + elapsed + " / " + total + " min"),
-                        React.createElement("span", null, remaining + " min rimanenti")
-                      ),
-                      React.createElement("div", { style:{ background:"rgba(255,118,117,0.15)", borderRadius:10, height:12, width:"100%", overflow:"hidden" } },
-                        React.createElement("div", { style:{ background:"#FF7675", height:"100%", width:pct + "%", borderRadius:10, transition:"width 30s linear", boxShadow:"0 0 8px rgba(255,118,117,0.5)" } })
-                      )
-                    );
-                  })() : null,
+
                   React.createElement("div", { style:{ marginTop:6, display:"flex", flexWrap:"wrap", gap:5, alignItems:"center" } },
                     (materials ? materials.split(",").map(function(m){ return m.trim(); }).filter(function(m){ return m; }) : []).map(function(m, mi){
                       return React.createElement("span", { key:mi, style:{ background: isCurrent ? "#FF7675" : "#F1F2F6", color: isCurrent ? "#fff" : scColor, fontSize: isLive ? 17 : 15, fontWeight:700, padding:"4px 10px", borderRadius:20, display:"flex", alignItems:"center", gap:4 } },
