@@ -308,17 +308,36 @@ function LessonView(props) {
 
           !isLive && React.createElement("div", { style:{ background:"#F8F9FA", padding:20, borderRadius:20, margin:"25px 0", border:"1px solid #E9ECEF" } },
             React.createElement("b", { style:{ fontSize:11, color:"#A4B0BE", letterSpacing:1 } }, "MATERIALS CHECKLIST:"),
-            React.createElement("div", { style:{ display:"flex", flexWrap:"wrap", gap:10, marginTop:10 } },
+            React.createElement("div", { style:{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10, alignItems:"center" } },
               Array.from(new Set(
                 curL.map(function(a){ return safeStr(a.materials); })
                   .filter(function(m){ return m && !m.toLowerCase().includes("audio") && !m.toLowerCase().includes("track"); })
                   .join(", ").split(",")
                   .map(function(m){ return m.trim(); })
                   .filter(function(m){ return m !== ""; })
-              )).map(function(m, i){
-                return React.createElement("label", { key:i, style:{ fontSize:13, fontWeight:700, background:"#FFF", padding:"5px 10px", borderRadius:8, border:"1px solid #DDD", cursor:"pointer" } },
-                  React.createElement("input", { type:"checkbox", style:{ marginRight:4 } }), m.trim()
+              )).map(function(m, ci){
+                return React.createElement("label", { key:ci, style:{ fontSize:13, fontWeight:700, background:"#FFF", padding:"5px 10px", borderRadius:8, border:"1px solid #DDD", cursor:"pointer", display:"flex", alignItems:"center", gap:4 } },
+                  React.createElement("input", { type:"checkbox", style:{ marginRight:4 } }),
+                  m.trim()
                 );
+              }),
+              React.createElement("input", {
+                type:"text", placeholder:"+ aggiungi...",
+                style:{ fontSize:12, border:"1px dashed #CCC", borderRadius:8, padding:"4px 10px", color:"#636e72", width:110 },
+                onKeyDown:function(e){
+                  if (e.key === "Enter" && e.target.value.trim()) {
+                    var newMat = e.target.value.trim();
+                    var newArr = curL.map(function(act, ai) {
+                      if (ai === 0) {
+                        var mats = safeStr(act.materials);
+                        return Object.assign({}, act, { materials: mats ? mats + ", " + newMat : newMat });
+                      }
+                      return act;
+                    });
+                    saveActs(newArr);
+                    e.target.value = "";
+                  }
+                }
               })
             )
           ),
@@ -349,29 +368,16 @@ function LessonView(props) {
                 React.createElement("div", { style:{ minWidth:90, fontWeight:900, color: isCurrent ? "#FF7675" : scColor, fontSize:22 } },
                   a.start, React.createElement("br", null),
                   React.createElement("span", { style:{ fontSize:12, opacity:0.3 } }, a.end),
-                  isCurrent && isLive ? (function(){
-                    var startMins = timeToMins(a.start);
-                    var endMins = timeToMins(a.end);
-                    var total = endMins - startMins;
-                    var elapsed = Math.max(0, Math.min(total, nowMins - startMins));
-                    var pct = total > 0 ? Math.round((elapsed / total) * 100) : 0;
-                    return React.createElement("div", { style:{ marginTop:8 } },
-                      React.createElement("div", { style:{ background:"rgba(0,0,0,0.1)", borderRadius:10, height:10, width:80, overflow:"hidden" } },
-                        React.createElement("div", { style:{ background:"#FF7675", height:"100%", width:pct + "%", borderRadius:10, transition:"width 1s linear" } })
-                      ),
-                      React.createElement("div", { style:{ fontSize:10, fontWeight:700, color:"#FF7675", marginTop:3 } }, (total - elapsed) + " min left")
-                    );
-                  })() : null
                 ),
                 React.createElement("div", { style:{ flex:1 } },
                   React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" } },
-                    React.createElement("b", { style:{ fontSize: isLive ? 28 : 22, color: isCurrent ? "#FF7675" : "inherit" } }, isCurrent ? "\u25B6 " + name : name),
+                    React.createElement("b", { style:{ fontSize: isLive ? 28 : 22, color: isCurrent ? "#FF7675" : (isLive ? "#1a237e" : "inherit") } }, isCurrent ? "\u25B6 " + name : name),
                     !isLive && React.createElement("div", { style:{ display:"flex", gap:8 } },
                       React.createElement("button", { onClick:function(){ setClipboard(a); showMsg("Copied!"); }, style:{ border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5 } }, "COPY"),
                       React.createElement("input", { type:"text", placeholder:"Audio", value:audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
-                      React.createElement("div", { style:{ display:"flex", alignItems:"center", background:"#EEE", borderRadius:5, padding:"0 5px" } },
-                        React.createElement("input", { type:"number", value:duration, onChange:function(e){ updateAct(i, "duration", e.target.value); }, style:{ width:35, border:"none", background:"transparent", textAlign:"center", fontWeight:900, fontSize:13 } }),
-                        React.createElement("span", { style:{ fontSize:11, fontWeight:700, color:"#636e72" } }, "min")
+                      React.createElement("div", { style:{ display:"flex", alignItems:"center", background:"#EEE", borderRadius:5, padding:"0 5px", minWidth:60 } },
+                        React.createElement("input", { type:"number", value:String(duration), onChange:function(e){ updateAct(i, "duration", e.target.value); }, style:{ width:40, border:"none", background:"transparent", textAlign:"center", fontWeight:900, fontSize:14, color:"#2D3436" } }),
+                        React.createElement("span", { style:{ fontSize:12, fontWeight:700, color:"#636e72" } }, "min")
                       ),
                       React.createElement("button", { onClick:function(){ deleteAct(i); }, style:{ border:"none", background:"none", fontSize:20, color:"#D63031" } }, "\u2715")
                     )
@@ -409,6 +415,23 @@ function LessonView(props) {
                         }
                         return React.createElement("span", { key:pi, style:{ color: isLive ? "#2D3436" : "#636e72" } }, part);
                       })
+                    );
+                  })() : null,
+                  isCurrent && isLive ? (function(){
+                    var startMins = timeToMins(a.start);
+                    var endMins = timeToMins(a.end);
+                    var total = endMins - startMins;
+                    var elapsed = Math.max(0, Math.min(total, nowMins - startMins));
+                    var pct = total > 0 ? Math.round((elapsed / total) * 100) : 0;
+                    var remaining = total - elapsed;
+                    return React.createElement("div", { style:{ margin:"12px 0 4px 0" } },
+                      React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", fontSize:12, fontWeight:700, color:"#FF7675", marginBottom:4 } },
+                        React.createElement("span", null, "⏱ " + elapsed + " / " + total + " min"),
+                        React.createElement("span", null, remaining + " min rimanenti")
+                      ),
+                      React.createElement("div", { style:{ background:"rgba(255,118,117,0.15)", borderRadius:10, height:12, width:"100%", overflow:"hidden" } },
+                        React.createElement("div", { style:{ background:"#FF7675", height:"100%", width:pct + "%", borderRadius:10, transition:"width 30s linear", boxShadow:"0 0 8px rgba(255,118,117,0.5)" } })
+                      )
                     );
                   })() : null,
                   React.createElement("div", { style:{ marginTop:6, display:"flex", flexWrap:"wrap", gap:5, alignItems:"center" } },
