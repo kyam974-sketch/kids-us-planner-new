@@ -312,11 +312,12 @@ function LessonView(props) {
               Array.from(new Set(
                 curL.map(function(a){ return safeStr(a.materials); })
                   .filter(function(m){ return m && !m.toLowerCase().includes("audio") && !m.toLowerCase().includes("track"); })
-                  .join(", ").split(", ")
-                  .filter(function(m){ return m.trim() !== ""; })
+                  .join(", ").split(",")
+                  .map(function(m){ return m.trim(); })
+                  .filter(function(m){ return m !== ""; })
               )).map(function(m, i){
-                return React.createElement("label", { key:i, style:{ fontSize:13, fontWeight:700, background:"#FFF", padding:"5px 10px", borderRadius:8, border:"1px solid #DDD" } },
-                  React.createElement("input", { type:"checkbox" }), " " + m.trim()
+                return React.createElement("label", { key:i, style:{ fontSize:13, fontWeight:700, background:"#FFF", padding:"5px 10px", borderRadius:8, border:"1px solid #DDD", cursor:"pointer" } },
+                  React.createElement("input", { type:"checkbox", style:{ marginRight:4 } }), m.trim()
                 );
               })
             )
@@ -347,7 +348,20 @@ function LessonView(props) {
               },
                 React.createElement("div", { style:{ minWidth:90, fontWeight:900, color: isCurrent ? "#FF7675" : scColor, fontSize:22 } },
                   a.start, React.createElement("br", null),
-                  React.createElement("span", { style:{ fontSize:12, opacity:0.3 } }, a.end)
+                  React.createElement("span", { style:{ fontSize:12, opacity:0.3 } }, a.end),
+                  isCurrent && isLive ? (function(){
+                    var startMins = timeToMins(a.start);
+                    var endMins = timeToMins(a.end);
+                    var total = endMins - startMins;
+                    var elapsed = Math.max(0, Math.min(total, nowMins - startMins));
+                    var pct = total > 0 ? Math.round((elapsed / total) * 100) : 0;
+                    return React.createElement("div", { style:{ marginTop:8 } },
+                      React.createElement("div", { style:{ background:"rgba(0,0,0,0.1)", borderRadius:10, height:10, width:80, overflow:"hidden" } },
+                        React.createElement("div", { style:{ background:"#FF7675", height:"100%", width:pct + "%", borderRadius:10, transition:"width 1s linear" } })
+                      ),
+                      React.createElement("div", { style:{ fontSize:10, fontWeight:700, color:"#FF7675", marginTop:3 } }, (total - elapsed) + " min left")
+                    );
+                  })() : null
                 ),
                 React.createElement("div", { style:{ flex:1 } },
                   React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" } },
@@ -355,7 +369,10 @@ function LessonView(props) {
                     !isLive && React.createElement("div", { style:{ display:"flex", gap:8 } },
                       React.createElement("button", { onClick:function(){ setClipboard(a); showMsg("Copied!"); }, style:{ border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5 } }, "COPY"),
                       React.createElement("input", { type:"text", placeholder:"Audio", value:audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
-                      React.createElement("input", { type:"number", value:duration, onChange:function(e){ updateAct(i, "duration", e.target.value); }, style:{ width:40, border:"none", background:"#EEE", borderRadius:5, textAlign:"center", fontWeight:900 } }),
+                      React.createElement("div", { style:{ display:"flex", alignItems:"center", background:"#EEE", borderRadius:5, padding:"0 5px" } },
+                        React.createElement("input", { type:"number", value:duration, onChange:function(e){ updateAct(i, "duration", e.target.value); }, style:{ width:35, border:"none", background:"transparent", textAlign:"center", fontWeight:900, fontSize:13 } }),
+                        React.createElement("span", { style:{ fontSize:11, fontWeight:700, color:"#636e72" } }, "min")
+                      ),
                       React.createElement("button", { onClick:function(){ deleteAct(i); }, style:{ border:"none", background:"none", fontSize:20, color:"#D63031" } }, "\u2715")
                     )
                   ),
@@ -394,7 +411,50 @@ function LessonView(props) {
                       })
                     );
                   })() : null,
-                  materials ? React.createElement("div", { style:{ fontSize:12, fontWeight:700, color: isCurrent ? "#FF7675" : scColor }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "materials", e.target.innerText); } }, materials) : null
+                  React.createElement("div", { style:{ marginTop:6, display:"flex", flexWrap:"wrap", gap:5, alignItems:"center" } },
+                    (materials ? materials.split(",").map(function(m){ return m.trim(); }).filter(function(m){ return m; }) : []).map(function(m, mi){
+                      return React.createElement("span", { key:mi, style:{ background: isCurrent ? "#FF7675" : "#F1F2F6", color: isCurrent ? "#fff" : scColor, fontSize: isLive ? 17 : 15, fontWeight:700, padding:"4px 10px", borderRadius:20, display:"flex", alignItems:"center", gap:4 } },
+                        m,
+                        !isLive && React.createElement("span", { onClick:function(){
+                          var arr = materials.split(",").map(function(x){ return x.trim(); }).filter(function(x){ return x; });
+                          arr.splice(mi, 1);
+                          updateAct(i, "materials", arr.join(", "));
+                        }, style:{ cursor:"pointer", fontWeight:900, fontSize:14, opacity:0.6, marginLeft:2 } }, "×")
+                      );
+                    }),
+                    !isLive && React.createElement("select", {
+                      onChange:function(e){
+                        if (!e.target.value) { return; }
+                        var arr = materials ? materials.split(",").map(function(x){ return x.trim(); }).filter(function(x){ return x; }) : [];
+                        if (arr.indexOf(e.target.value) === -1) { arr.push(e.target.value); }
+                        updateAct(i, "materials", arr.join(", "));
+                        e.target.value = "";
+                      },
+                      style:{ fontSize:11, borderRadius:8, border:"1px dashed #CCC", padding:"2px 6px", color:"#636e72", background:"#fff", cursor:"pointer" }
+                    },
+                      React.createElement("option", { value:"" }, "+ materiale"),
+                      Array.from(new Set(
+                        curL.map(function(a){ return safeStr(a.materials); })
+                          .join(", ").split(",")
+                          .map(function(m){ return m.trim(); })
+                          .filter(function(m){ return m.length > 0; })
+                      )).map(function(m, mi){
+                        return React.createElement("option", { key:mi, value:m }, m);
+                      })
+                    ),
+                    !isLive && React.createElement("input", {
+                      type:"text", placeholder:"+ nuovo...",
+                      style:{ fontSize:11, border:"1px dashed #CCC", borderRadius:8, padding:"2px 8px", width:80, color:"#636e72" },
+                      onKeyDown:function(e){
+                        if (e.key === "Enter" && e.target.value.trim()) {
+                          var arr = materials ? materials.split(",").map(function(x){ return x.trim(); }).filter(function(x){ return x; }) : [];
+                          arr.push(e.target.value.trim());
+                          updateAct(i, "materials", arr.join(", "));
+                          e.target.value = "";
+                        }
+                      }
+                    })
+                  )
                 )
               );
             })
