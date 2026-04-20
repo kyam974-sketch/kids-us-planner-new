@@ -266,6 +266,7 @@ function LessonView(props) {
   var scLimit = sc.limit;
   var scName = sc.name;
   var nowMins = now.getHours() * 60 + now.getMinutes();
+  var nowSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
   var currentActIdx = -1;
   for (var pi = 0; pi < plan.length; pi++) {
@@ -296,10 +297,19 @@ function LessonView(props) {
         )
       ),
 
-      isLive && React.createElement("div", { style:{ background:"#FF7675", padding:"10px 20px", textAlign:"center", fontSize:16, fontWeight:900, color:"#fff" } },
-        now.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }) +
-        (currentActIdx >= 0 ? "  \u25B6  " + safeStr(plan[currentActIdx].name) : "  \u23F3  In attesa...")
+      isLive && React.createElement("div", { style:{ position:"fixed", top:0, left:0, right:0, background:"#FF7675", padding:"10px 20px", textAlign:"center", fontSize:16, fontWeight:900, color:"#fff", zIndex:9999, display:"flex", justifyContent:"space-between", alignItems:"center", boxShadow:"0 2px 10px rgba(0,0,0,0.2)" } },
+        React.createElement("span", null, now.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })),
+        React.createElement("span", null, currentActIdx >= 0 ? "\u25B6 " + safeStr(plan[currentActIdx].name) : "\u23F3 In attesa..."),
+        React.createElement("span", null, (function(){
+          if (currentActIdx < 0) { return ""; }
+          var act = plan[currentActIdx];
+          var _startSecs = timeToMins(act.start) * 60;
+          var _endSecs = timeToMins(act.end) * 60;
+          var _rem = Math.max(0, _endSecs - nowSecs);
+          return "\u23F1 " + Math.floor(_rem/60) + ":" + String(_rem%60).padStart(2,"0");
+        })())
       ),
+      isLive && React.createElement("div", { style:{ height:46 } }),
 
       React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
         React.createElement("div", { style:{ background: isLive ? "#E3F2FD" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35 } },
@@ -380,12 +390,14 @@ function LessonView(props) {
               var isCurrent = isLive && i === currentActIdx;
 
               var pctFill = 0;
+              var remainingSecs = 0;
               if (isCurrent && isLive) {
-                var _start = timeToMins(a.start);
-                var _end = timeToMins(a.end);
-                var _total = _end - _start;
-                var _elapsed = Math.max(0, Math.min(_total, nowMins - _start));
-                pctFill = _total > 0 ? Math.round((_elapsed / _total) * 100) : 0;
+                var _startSecs = timeToMins(a.start) * 60;
+                var _endSecs = timeToMins(a.end) * 60;
+                var _totalSecs = _endSecs - _startSecs;
+                var _elapsedSecs = Math.max(0, Math.min(_totalSecs, nowSecs - _startSecs));
+                pctFill = _totalSecs > 0 ? (_elapsedSecs / _totalSecs) * 100 : 0;
+                remainingSecs = Math.max(0, _totalSecs - _elapsedSecs);
               }
               return React.createElement("div", {
                 key:i,
@@ -394,12 +406,12 @@ function LessonView(props) {
                   borderLeft: isCurrent ? "12px solid #FF7675" : "8px solid " + scColor,
                   paddingLeft:30,
                   background: isCurrent
-                    ? "linear-gradient(to right, rgba(255,118,117,0.18) " + pctFill + "%, #BBDEFB " + pctFill + "%)"
+                    ? "linear-gradient(to right, rgba(255,118,117,0.22) " + pctFill.toFixed(2) + "%, #BBDEFB " + pctFill.toFixed(2) + "%)"
                     : "transparent",
                   borderRadius: isCurrent ? 16 : 0,
                   marginBottom: isCurrent ? 10 : 0,
                   boxShadow: isCurrent ? "0 0 20px rgba(25,118,210,0.3)" : "none",
-                  transition:"background 30s linear"
+                  transition:"background 1s linear"
                 }
               },
                 React.createElement("div", { style:{ minWidth:90, fontWeight:900, color: isCurrent ? "#FF7675" : scColor, fontSize:22 } },
@@ -408,7 +420,12 @@ function LessonView(props) {
                 ),
                 React.createElement("div", { style:{ flex:1 } },
                   React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" } },
-                    React.createElement("b", { style:{ fontSize: isLive ? 28 : 22, color: isCurrent ? "#FF7675" : (isLive ? "#1a237e" : "inherit") } }, isCurrent ? "\u25B6 " + name : name),
+                    React.createElement("div", { style:{ display:"flex", alignItems:"baseline", gap:12, flexWrap:"wrap" } },
+                      React.createElement("b", { style:{ fontSize: isLive ? 28 : 22, color: isCurrent ? "#FF7675" : (isLive ? "#1a237e" : "inherit") } }, isCurrent ? "\u25B6 " + name : name),
+                      isCurrent && isLive ? React.createElement("span", { style:{ fontSize:18, fontWeight:900, color:"#FF7675", background:"rgba(255,118,117,0.12)", borderRadius:8, padding:"2px 10px" } },
+                        "\u23F1 " + Math.floor(remainingSecs/60) + ":" + String(remainingSecs%60).padStart(2,"0")
+                      ) : null
+                    ),
                     !isLive && React.createElement("div", { style:{ display:"flex", gap:8 } },
                       React.createElement("button", { onClick:function(){ setClipboard(a); showMsg("Copied!"); }, style:{ border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5 } }, "COPY"),
                       React.createElement("input", { type:"text", placeholder:"Audio", value:audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
