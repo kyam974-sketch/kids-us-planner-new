@@ -228,7 +228,7 @@ function LessonView(props) {
       var contextKey = sc.id + "|context|" + sp;
       var contextData = lessons[contextKey];
       var contextInfo = contextData && typeof contextData === "string" ? "\n\nSTORY CONTEXT (routines, objectives, choosing rhyme):\n" + contextData : "";
-      var promptMsg = "Extract Kids&Us lesson from this teacher guide page. Use ONLY English. Find Track or Audio and put in audio field. Target Language: Verbatim. Use [T] for Teacher, [K] for Kids. If Bonus set is_bonus true." + contextInfo + "\n\nIMPORTANT: Include warm-up and goodbye routines from context as first and last activities. Choosing rhyme is NOT a separate activity, mention it only in descriptions where used. Return JSON array: [{name,duration,audio,desc,target,materials,is_bonus}]";
+      var promptMsg = "Extract Kids&Us lesson from this teacher guide page. Use ONLY English. Find Track or Audio and put in audio field. If Bonus set is_bonus true." + contextInfo + "\n\nIMPORTANT: Include warm-up and goodbye routines from context as first and last activities. Choosing rhyme is NOT a separate activity, mention it only in descriptions where used.\n\nFor the desc field: write a single flowing narrative description of the activity. Embed the key phrases to say (target language) directly inside the description using **double asterisks** around them, like this example: 'Greet each child warmly and say **Hello Jane! Nice to see you!** They respond **Fine, thank you.** Then ask **How are you today?**'\n\nDo NOT use a separate target field. Return JSON array: [{name,duration,audio,desc,materials,is_bonus}]";
       var res = await fetch("/api/generate", {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
@@ -375,25 +375,23 @@ function LessonView(props) {
                       }, a.surprise || desc.slice(0, 80))
                     );
                   })(),
-                  target ? (function() {
-                    if (!isLive) {
-                      return React.createElement("div", { style:{ background:"#F1F2F6", padding:12, borderRadius:10, margin:"10px 0", fontWeight:700 }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "target", e.target.innerText); } },
-                        target.split("[K]").map(function(part, idx){
-                          return React.createElement("span", { key:idx, className: idx === 0 ? "t-phrase" : "k-phrase" }, part.replace("[T]","").replace("[K]","").trim());
-                        })
-                      );
-                    }
-                    // In LIVE: mostra frasi evidenziate in giallo
-                    var phrases = target.split(/\[T\]|\[K\]/).map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 1; });
-                    return React.createElement("div", { style:{ padding:"12px 0", margin:"6px 0" } },
-                      phrases.map(function(phrase, pi) {
-                        return React.createElement("span", { key:pi,
-                          style:{ background:"#FFF176", color:"#1a1a1a", borderRadius:4, padding:"3px 6px", marginRight:6, marginBottom:6, display:"inline-block", fontWeight:700, fontSize: isCurrent ? 20 : 16, lineHeight:1.8 }
-                        }, phrase);
+                  desc ? (function() {
+                    var fontSize = isLive ? (isCurrent ? 22 : 18) : 15;
+                    var parts = desc.split(/\*\*([^*]+)\*\*/);
+                    return React.createElement("div", { style:{ margin:"10px 0", lineHeight:2, fontSize:fontSize },
+                      contentEditable:!isLive, suppressContentEditableWarning:true,
+                      onBlur:function(e){ updateAct(i, "desc", e.target.innerText); }
+                    },
+                      parts.map(function(part, pi) {
+                        if (pi % 2 === 1) {
+                          return React.createElement("span", { key:pi,
+                            style:{ background:"#FFF176", color:"#1a1a1a", borderRadius:4, padding:"2px 7px", marginRight:3, fontWeight:800, display:"inline-block", boxShadow:"0 1px 3px rgba(0,0,0,0.1)" }
+                          }, part);
+                        }
+                        return React.createElement("span", { key:pi, style:{ color: isLive ? "#2D3436" : "#636e72" } }, part);
                       })
                     );
                   })() : null,
-                  desc ? React.createElement("p", { style:{ fontSize: isLive ? 20 : 16, margin:"10px 0" }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "desc", e.target.innerText); } }, desc) : null,
                   materials ? React.createElement("div", { style:{ fontSize:12, fontWeight:700, color: isCurrent ? "#FF7675" : scColor }, contentEditable:true, suppressContentEditableWarning:true, onBlur:function(e){ updateAct(i, "materials", e.target.innerText); } }, materials) : null
                 )
               );
