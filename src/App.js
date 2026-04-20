@@ -362,7 +362,9 @@ function LessonView(props) {
                   audio ? React.createElement("div", { style:{ background:"#FBC02D", color:"#000", display:"inline-block", padding:"2px 8px", borderRadius:5, fontSize:13, fontWeight:900, margin:"5px 0" } }, "\uD83C\uDFB5 " + audio) : null,
                   (function() {
                     if (sc.type !== "baby") { return null; }
-                    var hasSurprise = desc.toLowerCase().includes("surprise") || name.toLowerCase().includes("surprise") || desc.toLowerCase().includes(" draw ") || desc.toLowerCase().includes("face paint");
+                    var isLastAct = i === plan.length - 1;
+                    if (!isLastAct) { return null; }
+                    var hasSurprise = desc.toLowerCase().includes("surprise") || desc.toLowerCase().includes("face paint") || desc.toLowerCase().includes("draw");
                     if (!hasSurprise) { return null; }
                     return React.createElement("div", { style:{ background:"#E17055", color:"#fff", borderRadius:12, padding:"12px 16px", margin:"8px 0", fontWeight:900, fontSize: isLive ? 22 : 15, boxShadow:"0 4px 12px rgba(225,112,85,0.4)", display:"flex", alignItems:"flex-start", gap:8 } },
                       React.createElement("span", { style:{ fontSize: isLive ? 30 : 20, flexShrink:0 } }, "\uD83C\uDF81"),
