@@ -284,22 +284,21 @@ function LessonView(props) {
     },
       React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}"),
 
-      React.createElement("div", { className:"no-print", style:{ display:"flex", justifyContent:"space-between", background: isLive ? "#E3F2FD" : "#fff", padding:15, boxShadow:"0 5px 15px rgba(0,0,0,0.05)" } },
-        React.createElement("button", { onClick:onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16 } }, "\u2190 EXIT"),
-        React.createElement("div", { style:{ display:"flex", gap:10 } },
-          React.createElement("button", { onClick:undo, style:{ background:"#f1f2f6", border:"none", borderRadius:10, padding:"0 15px", fontWeight:800 } }, "UNDO"),
-          React.createElement("input", { type:"time", value:startTime, onChange:function(e){ setStartTime(e.target.value); }, style:{ borderRadius:8, border:"none", padding:10, fontWeight:900, background:"#F1F2F6" } }),
-          React.createElement("button", { onClick:function(){ setIsLive(!isLive); }, style:{ background:"#27AE60", color:"#fff", border:"none", padding:"10px 20px", borderRadius:12, fontWeight:800 } }, isLive ? "EDIT" : "LIVE"),
-
-          React.createElement("button", { onClick:function(){ window.print(); }, style:{ background:"#2F3542", color:"#fff", border:"none", borderRadius:12, padding:"0 20px" } }, "PRINT"),
-          React.createElement("button", { onClick:exportExcel, style:{ background:"#00B894", color:"#fff", border:"none", borderRadius:12, padding:"0 15px", fontWeight:800 } }, "\uD83D\uDCCA CSV"),
-          React.createElement("button", { onClick:function(){ if(window.confirm("Cancellare tutta la lezione?")){ clearLesson(); } }, style:{ background:"#D63031", color:"#fff", border:"none", borderRadius:12, padding:"0 15px", fontWeight:800 } }, "\uD83D\uDDD1")
+      React.createElement("div", { className:"no-print", style:{ display:"flex", justifyContent:"space-between", alignItems:"center", background: isLive ? "#E3F2FD" : "#fff", padding:"10px 12px", boxShadow:"0 5px 15px rgba(0,0,0,0.05)", flexWrap:"wrap", gap:6, position:"sticky", top:0, zIndex:9999 } },
+        React.createElement("button", { onClick:onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16, padding:"8px 4px" } }, "\u2190 EXIT"),
+        React.createElement("div", { style:{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" } },
+          React.createElement("button", { onClick:undo, style:{ background:"#f1f2f6", border:"none", borderRadius:10, padding:"8px 12px", fontWeight:800, fontSize:13 } }, "UNDO"),
+          React.createElement("input", { type:"time", value:startTime, onChange:function(e){ setStartTime(e.target.value); }, style:{ borderRadius:8, border:"none", padding:"8px 6px", fontWeight:900, background:"#F1F2F6", fontSize:13 } }),
+          React.createElement("button", { onClick:function(){ setIsLive(!isLive); }, style:{ background:"#27AE60", color:"#fff", border:"none", padding:"8px 14px", borderRadius:12, fontWeight:800, fontSize:13 } }, isLive ? "EDIT" : "LIVE"),
+          !isLive && React.createElement("button", { onClick:function(){ window.print(); }, style:{ background:"#2F3542", color:"#fff", border:"none", borderRadius:12, padding:"8px 12px", fontSize:13 } }, "PRINT"),
+          !isLive && React.createElement("button", { onClick:exportExcel, style:{ background:"#00B894", color:"#fff", border:"none", borderRadius:12, padding:"8px 10px", fontWeight:800, fontSize:13 } }, "\uD83D\uDCCA CSV"),
+          !isLive && React.createElement("button", { onClick:function(){ if(window.confirm("Cancellare tutta la lezione?")){ clearLesson(); } }, style:{ background:"#D63031", color:"#fff", border:"none", borderRadius:12, padding:"8px 10px", fontWeight:800, fontSize:13 } }, "\uD83D\uDDD1")
         )
       ),
 
-      isLive && React.createElement("div", { style:{ position:"fixed", top:0, left:0, right:0, background:"#FF7675", padding:"10px 20px", textAlign:"center", fontSize:16, fontWeight:900, color:"#fff", zIndex:9999, display:"flex", justifyContent:"space-between", alignItems:"center", boxShadow:"0 2px 10px rgba(0,0,0,0.2)" } },
+      isLive && React.createElement("div", { style:{ position:"fixed", top:56, left:0, right:0, background:"#FF7675", padding:"8px 16px", fontSize:15, fontWeight:900, color:"#fff", zIndex:9998, display:"flex", justifyContent:"space-between", alignItems:"center", boxShadow:"0 2px 10px rgba(0,0,0,0.2)" } },
         React.createElement("span", null, now.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })),
-        React.createElement("span", null, currentActIdx >= 0 ? "\u25B6 " + safeStr(plan[currentActIdx].name) : "\u23F3 In attesa..."),
+        React.createElement("span", { style:{ textAlign:"center", flex:1, margin:"0 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" } }, currentActIdx >= 0 ? "\u25B6 " + safeStr(plan[currentActIdx].name) : "\u23F3 In attesa..."),
         React.createElement("span", null, (function(){
           if (currentActIdx < 0) { return ""; }
           var act = plan[currentActIdx];
@@ -309,10 +308,10 @@ function LessonView(props) {
           return "\u23F1 " + Math.floor(_rem/60) + ":" + String(_rem%60).padStart(2,"0");
         })())
       ),
-      isLive && React.createElement("div", { style:{ height:46 } }),
+      isLive && React.createElement("div", { style:{ height:96 } }),
 
       React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
-        React.createElement("div", { style:{ background: isLive ? "#E3F2FD" : "#fff", padding: isLive ? 20 : 45, borderRadius: isLive ? 0 : 35 } },
+        React.createElement("div", { style:{ background: isLive ? "#E3F2FD" : "#fff", padding: isLive ? "15px 12px" : "25px 20px", borderRadius: isLive ? 0 : 20 } },
           React.createElement("h1", { style:{ color:scColor, margin:0 } }, scName + " - Day " + sd),
           React.createElement("div", { style:{ fontWeight:900, color: totalMinutes > scLimit ? "#D63031" : "#00B894", fontSize:18 } }, "TOTAL: " + totalMinutes + " / " + scLimit + " min"),
 
@@ -402,9 +401,9 @@ function LessonView(props) {
               return React.createElement("div", {
                 key:i,
                 style:{
-                  display:"flex", gap:30, paddingBottom:40, paddingTop: isCurrent ? 20 : 0,
-                  borderLeft: isCurrent ? "12px solid #FF7675" : "8px solid " + scColor,
-                  paddingLeft:30,
+                  display:"flex", gap:15, paddingBottom: isLive ? 20 : 40, paddingTop: isCurrent ? 15 : 0,
+                  borderLeft: isCurrent ? "8px solid #FF7675" : "5px solid " + scColor,
+                  paddingLeft: isLive ? 12 : 20,
                   background: isCurrent
                     ? "linear-gradient(to right, rgba(255,118,117,0.22) " + pctFill.toFixed(2) + "%, #BBDEFB " + pctFill.toFixed(2) + "%)"
                     : "transparent",
