@@ -238,6 +238,51 @@ function LessonView(props) {
       var d = await res.json();
       var cleanText = d.text.replace(/```json|```/g, "").trim();
       var parsed = JSON.parse(cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
+
+      // Estrai e carica immagini se presenti
+      setSs("Caricamento immagini...");
+      var imgRes = await fetch("/api/generate", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          imageB64: b64,
+          mimeType: files[0].type || "image/jpeg",
+          prompt: "Look at this teacher guide page. Are there any activity diagrams, card game images, worksheet images, or illustration images (NOT the Kids&Us logo or decorative elements)? If yes, for each image describe: 1) what activity it belongs to 2) a short label. Return JSON array: [{activityName, label}] or empty array [] if no relevant images."
+        })
+      });
+      var imgData = await imgRes.json();
+      try {
+        var imgClean = imgData.text.replace(/```json|```/g, "").trim();
+        var imgList = JSON.parse(imgClean.match(/\[[\s\S]*\]/)[0]);
+        if (imgList && imgList.length > 0) {
+          // Carica l'immagine originale su Storage una volta sola
+          var uploadRes = await fetch("/api/upload-image", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({
+              imageB64: b64,
+              mimeType: files[0].type || "image/jpeg",
+              filename: sc.id + "-" + sp.replace(" ","-") + "-day" + sd + "-" + Date.now()
+            })
+          });
+          var uploadData = await uploadRes.json();
+          if (uploadData.url) {
+            // Aggiungi il link all'attività corrispondente
+            parsed = parsed.map(function(act) {
+              var match = imgList.find(function(img) {
+                return act.name && img.activityName && act.name.toLowerCase().includes(img.activityName.toLowerCase().split(" ")[0]);
+              });
+              if (match) {
+                return Object.assign({}, act, { imageUrl: uploadData.url, imageLabel: match.label });
+              }
+              return act;
+            });
+          }
+        }
+      } catch(imgErr) {
+        console.log("No images found or upload failed:", imgErr.message);
+      }
+
       saveActs(parsed);
       setSs("Lezione sincronizzata!");
       setTimeout(function() { setScn(false); }, 3000);
@@ -282,7 +327,7 @@ function LessonView(props) {
     React.createElement("div", {
       style: { minHeight:"100vh", background: isLive ? "#E3F2FD" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
     },
-      React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}.act-row{display:flex;gap:15px;}.act-time{min-width:90px;}.act-content{flex:1;min-width:0;}@media(max-width:500px){.act-row{flex-direction:column!important;gap:4px!important;padding-left:8px!important;border-left-width:4px!important;}.act-time{min-width:unset!important;display:flex!important;gap:8px!important;align-items:baseline!important;font-size:14px!important;}.act-content b{font-size:16px!important;}.toolbar-btns button{font-size:11px!important;padding:5px 7px!important;}.toolbar-btns input[type=time]{font-size:11px!important;padding:5px!important;}}"),
+      React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}.act-row{display:flex;gap:15px;}.act-time{min-width:90px;}.act-content{flex:1;min-width:0;}@media(max-width:500px){.act-row{flex-direction:column!important;gap:2px!important;padding-left:8px!important;border-left-width:4px!important;padding-bottom:20px!important;}.act-time{min-width:unset!important;display:flex!important;gap:8px!important;align-items:baseline!important;font-size:13px!important;margin-bottom:2px!important;}.act-content b{font-size:15px!important;line-height:1.3!important;}.act-content p{font-size:13px!important;margin:6px 0!important;line-height:1.5!important;}.toolbar-btns button{font-size:11px!important;padding:5px 7px!important;}.toolbar-btns input[type=time]{font-size:11px!important;padding:5px!important;}.no-print .toolbar-btns{flex-wrap:wrap!important;}.checklist-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px!important;}.act-controls{flex-wrap:wrap!important;gap:4px!important;}.highlight-phrase{font-size:14px!important;padding:3px 6px!important;}.desc-text{font-size:13px!important;line-height:1.6!important;}}"),
 
       React.createElement("div", { className:"no-print", style:{ display:"flex", justifyContent:"space-between", alignItems:"center", background: isLive ? "#E3F2FD" : "#fff", padding:"10px 12px", boxShadow:"0 5px 15px rgba(0,0,0,0.05)", flexWrap:"wrap", gap:6, position:"sticky", top:0, zIndex:9999 } },
         React.createElement("button", { onClick:onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16, padding:"8px 4px" } }, "\u2190 EXIT"),
@@ -310,14 +355,14 @@ function LessonView(props) {
       ),
       isLive && React.createElement("div", { style:{ height:96 } }),
 
-      React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? 20 : 30 } },
+      React.createElement("div", { style:{ maxWidth:900, margin:"0 auto", padding: isLive ? "15px 8px" : "20px 12px" } },
         React.createElement("div", { style:{ background: isLive ? "#E3F2FD" : "#fff", padding: isLive ? "15px 12px" : "25px 20px", borderRadius: isLive ? 0 : 20 } },
           React.createElement("h1", { style:{ color:scColor, margin:0 } }, scName + " - Day " + sd),
           React.createElement("div", { style:{ fontWeight:900, color: totalMinutes > scLimit ? "#D63031" : "#00B894", fontSize:18 } }, "TOTAL: " + totalMinutes + " / " + scLimit + " min"),
 
           !isLive && React.createElement("div", { style:{ background:"#F8F9FA", padding:20, borderRadius:20, margin:"25px 0", border:"1px solid #E9ECEF" } },
             React.createElement("b", { style:{ fontSize:11, color:"#A4B0BE", letterSpacing:1 } }, "MATERIALS CHECKLIST:"),
-            React.createElement("div", { style:{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10, alignItems:"center" } },
+            React.createElement("div", { className:"checklist-grid", style:{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10, alignItems:"center" } },
               (function(){
                 var allMats = Array.from(new Set(
                   curL.map(function(a){ return safeStr(a.materials); })
@@ -426,7 +471,7 @@ function LessonView(props) {
                         "\u23F1 " + Math.floor(remainingSecs/60) + ":" + String(remainingSecs%60).padStart(2,"0")
                       ) : null
                     ),
-                    !isLive && React.createElement("div", { style:{ display:"flex", gap:8 } },
+                    !isLive && React.createElement("div", { className:"act-controls", style:{ display:"flex", gap:8 } },
                       React.createElement("button", { onClick:function(){ setClipboard(a); showMsg("Copied!"); }, style:{ border:"none", background:"#eee", borderRadius:5, fontSize:10, padding:5 } }, "COPY"),
                       React.createElement("input", { type:"text", placeholder:"Audio", value:audio, onChange:function(e){ updateAct(i, "audio", e.target.value); }, style:{ width:80, border:"none", background:"#FFF9C4", borderRadius:5, textAlign:"center", fontWeight:900, fontSize:11 } }),
                       React.createElement("div", { style:{ display:"flex", alignItems:"center", background:"#EEE", borderRadius:5, padding:"0 5px", minWidth:65 } },
@@ -454,6 +499,11 @@ function LessonView(props) {
                       }, a.surprise || desc.slice(0, 80))
                     );
                   })(),
+                  a.imageUrl ? React.createElement("div", { style:{ margin:"8px 0" } },
+                    React.createElement("a", { href:a.imageUrl, target:"_blank", style:{ display:"inline-flex", alignItems:"center", gap:6, background:"#E3F2FD", color:"#1565C0", borderRadius:8, padding:"6px 12px", fontSize:13, fontWeight:700, textDecoration:"none" } },
+                      "\uD83D\uDDBC\uFE0F " + (a.imageLabel || "Vedi immagine")
+                    )
+                  ) : null,
                   desc ? (function() {
                     var fontSize = isLive ? (isCurrent ? 22 : 18) : 15;
                     var parts = desc.split(/\*\*([^*]+)\*\*/);
@@ -464,7 +514,7 @@ function LessonView(props) {
                       parts.map(function(part, pi) {
                         if (pi % 2 === 1) {
                           return React.createElement("span", { key:pi,
-                            style:{ background:"#FFF176", color:"#1a1a1a", borderRadius:4, padding:"2px 7px", marginRight:3, fontWeight:800, display:"inline-block", boxShadow:"0 1px 3px rgba(0,0,0,0.1)" }
+                            style:{ background:"#FFF176", color:"#1a1a1a", borderRadius:4, padding:"2px 7px", marginRight:3, fontWeight:800, display:"inline-block", boxShadow:"0 1px 3px rgba(0,0,0,0.1)", fontSize: isLive ? (isCurrent ? 22 : 18) : 15 }
                           }, part);
                         }
                         return React.createElement("span", { key:pi, style:{ color: isLive ? "#2D3436" : "#636e72" } }, part);
