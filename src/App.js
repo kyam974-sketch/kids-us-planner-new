@@ -276,14 +276,15 @@ function LessonView(props) {
             var uploadData2 = await uploadRes2.json();
             if (uploadData2.url) {
               parsed = parsed.map(function(act) {
-                var actName = (act.name || "").toLowerCase();
+              parsed = parsed.map(function(act) {
                 var actName = (act.name || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ");
                 var match2 = imgList2.find(function(img) {
                   var imgName = (img.activityName || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ");
-                  var actWords = actName.split(/\s+/).filter(function(w){ return w.length > 3; });
-                  var imgWords = imgName.split(/\s+/).filter(function(w){ return w.length > 3; });
+                  var actWords = actName.split(" ").filter(function(w){ return w.length > 3; });
+                  var imgWords = imgName.split(" ").filter(function(w){ return w.length > 3; });
                   return actWords.some(function(w){ return imgName.includes(w); }) ||
                          imgWords.some(function(w){ return actName.includes(w); });
+                });
                 if (match2) {
                   return Object.assign({}, act, { imageUrl: uploadData2.url, imageLabel: match2.description || match2.activityName });
                 }
