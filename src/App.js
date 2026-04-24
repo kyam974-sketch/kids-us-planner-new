@@ -282,11 +282,11 @@ function LessonView(props) {
     React.createElement("div", {
       style: { minHeight:"100vh", background: isLive ? "#E3F2FD" : "#F4F7F6", color: isLive ? "#FFF" : "#2D3436", fontFamily:"sans-serif" }
     },
-      React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}"),
+      React.createElement("style", null, ".t-phrase{color:#27AE60;display:block;}.k-phrase{color:#2980B9;display:block;margin-top:4px;}[contenteditable]:hover{background:rgba(0,0,0,0.05);border-radius:4px;}.act-row{display:flex;gap:15px;}.act-time{min-width:90px;}.act-content{flex:1;min-width:0;}@media(max-width:500px){.act-row{flex-direction:column!important;gap:4px!important;padding-left:8px!important;border-left-width:4px!important;}.act-time{min-width:unset!important;display:flex!important;gap:8px!important;align-items:baseline!important;font-size:14px!important;}.act-content b{font-size:16px!important;}.toolbar-btns button{font-size:11px!important;padding:5px 7px!important;}.toolbar-btns input[type=time]{font-size:11px!important;padding:5px!important;}}"),
 
       React.createElement("div", { className:"no-print", style:{ display:"flex", justifyContent:"space-between", alignItems:"center", background: isLive ? "#E3F2FD" : "#fff", padding:"10px 12px", boxShadow:"0 5px 15px rgba(0,0,0,0.05)", flexWrap:"wrap", gap:6, position:"sticky", top:0, zIndex:9999 } },
         React.createElement("button", { onClick:onBack, style:{ color:scColor, fontWeight:900, border:"none", background:"none", fontSize:16, padding:"8px 4px" } }, "\u2190 EXIT"),
-        React.createElement("div", { style:{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" } },
+        React.createElement("div", { className:"toolbar-btns", style:{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" } },
           React.createElement("button", { onClick:undo, style:{ background:"#f1f2f6", border:"none", borderRadius:10, padding:"8px 12px", fontWeight:800, fontSize:13 } }, "UNDO"),
           React.createElement("input", { type:"time", value:startTime, onChange:function(e){ setStartTime(e.target.value); }, style:{ borderRadius:8, border:"none", padding:"8px 6px", fontWeight:900, background:"#F1F2F6", fontSize:13 } }),
           React.createElement("button", { onClick:function(){ setIsLive(!isLive); }, style:{ background:"#27AE60", color:"#fff", border:"none", padding:"8px 14px", borderRadius:12, fontWeight:800, fontSize:13 } }, isLive ? "EDIT" : "LIVE"),
@@ -400,6 +400,7 @@ function LessonView(props) {
               }
               return React.createElement("div", {
                 key:i,
+                className:"act-row",
                 style:{
                   display:"flex", gap:15, paddingBottom: isLive ? 20 : 40, paddingTop: isCurrent ? 15 : 0,
                   borderLeft: isCurrent ? "8px solid #FF7675" : "5px solid " + scColor,
@@ -413,11 +414,11 @@ function LessonView(props) {
                   transition:"background 1s linear"
                 }
               },
-                React.createElement("div", { style:{ minWidth:90, fontWeight:900, color: isCurrent ? "#FF7675" : scColor, fontSize:22 } },
+                React.createElement("div", { className:"act-time", style:{ minWidth:90, fontWeight:900, color: isCurrent ? "#FF7675" : scColor, fontSize:22 } },
                   a.start, React.createElement("br", null),
                   React.createElement("span", { style:{ fontSize:12, opacity:0.3 } }, a.end),
                 ),
-                React.createElement("div", { style:{ flex:1 } },
+                React.createElement("div", { className:"act-content", style:{ flex:1, minWidth:0 } },
                   React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" } },
                     React.createElement("div", { style:{ display:"flex", alignItems:"baseline", gap:12, flexWrap:"wrap" } },
                       React.createElement("b", { style:{ fontSize: isLive ? 28 : 22, color: isCurrent ? "#FF7675" : (isLive ? "#1a237e" : "inherit") } }, isCurrent ? "\u25B6 " + name : name),
