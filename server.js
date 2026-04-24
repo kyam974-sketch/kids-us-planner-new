@@ -93,6 +93,42 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
+app.post('/api/upload-image', async (req, res) => {
+  try {
+    const { imageB64, mimeType, filename } = req.body;
+    if (!imageB64) { return res.status(400).json({ error: "imageB64 required" }); }
+
+    const buffer = Buffer.from(imageB64, 'base64');
+    const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+    const fname = (filename || ('img-' + Date.now())) + '.' + ext;
+
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://zuaalqhbesywmfvuvgho.supabase.co';
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+
+    const uploadRes = await fetch(supabaseUrl + '/storage/v1/object/lesson-images/' + fname, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + supabaseKey,
+        'Content-Type': mimeType || 'image/jpeg',
+        'x-upsert': 'true'
+      },
+      body: buffer
+    });
+
+    if (!uploadRes.ok) {
+      const err = await uploadRes.text();
+      console.error('Storage upload error:', err);
+      return res.status(500).json({ error: err });
+    }
+
+    const publicUrl = supabaseUrl + '/storage/v1/object/public/lesson-images/' + fname;
+    res.json({ url: publicUrl });
+  } catch (error) {
+    console.error('ERRORE upload-image:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'build')));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
