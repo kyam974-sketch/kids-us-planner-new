@@ -276,7 +276,6 @@ function LessonView(props) {
             var uploadData2 = await uploadRes2.json();
             if (uploadData2.url) {
               parsed = parsed.map(function(act) {
-              parsed = parsed.map(function(act) {
                 var actName = (act.name || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ");
                 var match2 = imgList2.find(function(img) {
                   var imgName = (img.activityName || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ");
