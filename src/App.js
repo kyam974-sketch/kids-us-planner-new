@@ -240,47 +240,54 @@ function LessonView(props) {
       var parsed = JSON.parse(cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
 
       // Estrai e carica immagini se presenti
-      setSs("Caricamento immagini...");
-      var imgRes = await fetch("/api/generate", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({
-          imageB64: b64,
-          mimeType: files[0].type || "image/jpeg",
-          prompt: "Look at this teacher guide page. Are there any activity diagrams, card game images, worksheet images, or illustration images (NOT the Kids&Us logo or decorative elements)? If yes, for each image describe: 1) what activity it belongs to 2) a short label. Return JSON array: [{activityName, label}] or empty array [] if no relevant images."
-        })
-      });
-      var imgData = await imgRes.json();
+      // Estrai immagini dal PDF
       try {
-        var imgClean = imgData.text.replace(/```json|```/g, "").trim();
-        var imgList = JSON.parse(imgClean.match(/\[[\s\S]*\]/)[0]);
-        if (imgList && imgList.length > 0) {
-          // Carica l'immagine originale su Storage una volta sola
-          var uploadRes = await fetch("/api/upload-image", {
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body: JSON.stringify({
-              imageB64: b64,
-              mimeType: files[0].type || "image/jpeg",
-              filename: sc.id + "-" + sp.replace(" ","-") + "-day" + sd + "-" + Date.now()
-            })
-          });
-          var uploadData = await uploadRes.json();
-          if (uploadData.url) {
-            // Aggiungi il link all'attività corrispondente
-            parsed = parsed.map(function(act) {
-              var match = imgList.find(function(img) {
-                return act.name && img.activityName && act.name.toLowerCase().includes(img.activityName.toLowerCase().split(" ")[0]);
-              });
-              if (match) {
-                return Object.assign({}, act, { imageUrl: uploadData.url, imageLabel: match.label });
-              }
-              return act;
+        setSs("Cerco immagini nel documento...");
+        var imgRes2 = await fetch("/api/generate", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({
+            imageB64: b64,
+            mimeType: files[0].type || "image/jpeg",
+            prompt: "Look carefully at ALL pages of this document. Find any illustrations, drawings, worksheet images, or card game images embedded in the pages (NOT the Kids&Us logo, NOT text, NOT decorative borders). For each image found, return: the exact activity name it belongs to (copy it from the lesson plan), and a brief description of the image. Return ONLY valid JSON array: [{activityName:'exact name', description:'what the image shows'}] or [] if none found. No markdown, no explanation."
+          })
+        });
+        var imgData2 = await imgRes2.json();
+        var imgClean2 = imgData2.text.replace(/```json|```/g, "").trim();
+        var bracketStart = imgClean2.indexOf("[");
+        var bracketEnd = imgClean2.lastIndexOf("]");
+        if (bracketStart >= 0 && bracketEnd > bracketStart) {
+          var imgList2 = JSON.parse(imgClean2.slice(bracketStart, bracketEnd+1));
+          if (imgList2 && imgList2.length > 0) {
+            setSs("Carico " + imgList2.length + " immagini...");
+            var uploadRes2 = await fetch("/api/upload-image", {
+              method:"POST",
+              headers:{ "Content-Type":"application/json" },
+              body: JSON.stringify({
+                imageB64: b64,
+                mimeType: files[0].type || "image/jpeg",
+                filename: sc.id + "-" + sp.replace(/ /g,"-") + "-day" + sd + "-" + Date.now()
+              })
             });
+            var uploadData2 = await uploadRes2.json();
+            if (uploadData2.url) {
+              parsed = parsed.map(function(act) {
+                var actName = (act.name || "").toLowerCase();
+                var match2 = imgList2.find(function(img) {
+                  var imgName = (img.activityName || "").toLowerCase();
+                  var words = actName.split(/[:\s]+/).filter(function(w){ return w.length > 3; });
+                  return words.some(function(w){ return imgName.includes(w); }) || imgName.includes(actName.split(/[:\s]/)[0]);
+                });
+                if (match2) {
+                  return Object.assign({}, act, { imageUrl: uploadData2.url, imageLabel: match2.description || match2.activityName });
+                }
+                return act;
+              });
+            }
           }
         }
       } catch(imgErr) {
-        console.log("No images found or upload failed:", imgErr.message);
+        console.log("Image extraction skipped:", imgErr.message);
       }
 
       saveActs(parsed);
