@@ -114,6 +114,7 @@ function LessonView(props) {
   var s6 = useState(false); var scn = s6[0]; var setScn = s6[1];
   var s7 = useState(""); var ss = s7[0]; var setSs = s7[1];
   var fr = useRef(null);
+  var s8 = useState([]); var pendingFiles = s8[0]; var setPendingFiles = s8[1];
 
   useEffect(function() {
     var t = setInterval(function() { setNow(new Date()); }, 1000);
@@ -215,15 +216,18 @@ function LessonView(props) {
     showMsg("File scaricato!");
   };
 
-  var uploadToAI = async function(files) {
+  var uploadToAI = async function(filesInput) {
+    var filesArr = Array.isArray(filesInput) ? filesInput : Array.from(filesInput);
+    if (!filesArr || filesArr.length === 0) { return; }
     setSs("Analisi in corso..."); setScn(true);
     try {
-      setSs("Caricamento immagine...");
+      setSs("Caricamento " + filesArr.length + " file...");
       var b64 = await new Promise(function(resolve) {
         var rd = new FileReader();
         rd.onload = function() { resolve(rd.result.split(",")[1]); };
-        rd.readAsDataURL(files[0]);
+        rd.readAsDataURL(filesArr[0]);
       });
+      var mimeType = filesArr[0].type || "image/jpeg";
       setSs("Analisi AI in corso...");
       var contextKey = sc.id + "|context|" + sp;
       var contextData = lessons[contextKey];
@@ -232,7 +236,7 @@ function LessonView(props) {
       var res = await fetch("/api/generate", {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ imageB64:b64, mimeType:files[0].type || "image/jpeg", prompt:promptMsg })
+        body: JSON.stringify({ imageB64:b64, mimeType:mimeType, prompt:promptMsg })
       });
       setSs("Elaborazione risultati...");
       var d = await res.json();
@@ -248,7 +252,7 @@ function LessonView(props) {
           headers:{ "Content-Type":"application/json" },
           body: JSON.stringify({
             imageB64: b64,
-            mimeType: files[0].type || "image/jpeg",
+            mimeType: mimeType,
             prompt: "Look carefully at ALL pages of this document. Find any illustrations, drawings, worksheet images, or card game images embedded in the pages (NOT the Kids&Us logo, NOT text, NOT decorative borders). For each image found, return: the exact activity name it belongs to (copy it from the lesson plan), and a brief description of the image. Return ONLY valid JSON array: [{activityName:'exact name', description:'what the image shows'}] or [] if none found. No markdown, no explanation."
           })
         });
@@ -265,7 +269,7 @@ function LessonView(props) {
               headers:{ "Content-Type":"application/json" },
               body: JSON.stringify({
                 imageB64: b64,
-                mimeType: files[0].type || "image/jpeg",
+                mimeType: mimeType,
                 filename: sc.id + "-" + sp.replace(/ /g,"-") + "-day" + sd + "-" + Date.now()
               })
             });
@@ -273,11 +277,13 @@ function LessonView(props) {
             if (uploadData2.url) {
               parsed = parsed.map(function(act) {
                 var actName = (act.name || "").toLowerCase();
+                var actName = (act.name || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ");
                 var match2 = imgList2.find(function(img) {
-                  var imgName = (img.activityName || "").toLowerCase();
-                  var words = actName.split(/[:\s]+/).filter(function(w){ return w.length > 3; });
-                  return words.some(function(w){ return imgName.includes(w); }) || imgName.includes(actName.split(/[:\s]/)[0]);
-                });
+                  var imgName = (img.activityName || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ");
+                  var actWords = actName.split(/\s+/).filter(function(w){ return w.length > 3; });
+                  var imgWords = imgName.split(/\s+/).filter(function(w){ return w.length > 3; });
+                  return actWords.some(function(w){ return imgName.includes(w); }) ||
+                         imgWords.some(function(w){ return actName.includes(w); });
                 if (match2) {
                   return Object.assign({}, act, { imageUrl: uploadData2.url, imageLabel: match2.description || match2.activityName });
                 }
@@ -595,10 +601,28 @@ function LessonView(props) {
           ),
 
           !isLive && React.createElement("div", { style:{ marginTop:40, display:"flex", gap:10 } },
-            React.createElement("button", { onClick:function(){ fr.current.click(); }, style:{ flex:4, background:"#F1F2F6", border:"3px dashed #CCC", padding:30, borderRadius:25, fontWeight:900 } }, "SCAN LESSON"),
+            pendingFiles.length === 0
+              ? React.createElement("button", { onClick:function(){ fr.current.click(); }, style:{ flex:4, background:"#F1F2F6", border:"3px dashed #CCC", padding:30, borderRadius:25, fontWeight:900 } }, "SCAN LESSON")
+              : React.createElement("div", { style:{ flex:4, background:"#F1F2F6", border:"3px dashed #27AE60", padding:15, borderRadius:25 } },
+                  React.createElement("div", { style:{ fontSize:12, fontWeight:700, color:"#27AE60", marginBottom:8 } }, pendingFiles.length + " file selezionati"),
+                  pendingFiles.map(function(f, fi){
+                    return React.createElement("div", { key:fi, style:{ fontSize:11, color:"#636e72", display:"flex", justifyContent:"space-between", marginBottom:4 } },
+                      React.createElement("span", null, f.name.slice(0,30)),
+                      React.createElement("span", { onClick:function(){ setPendingFiles(function(prev){ return prev.filter(function(_,i){ return i!==fi; }); }); }, style:{ cursor:"pointer", color:"#D63031", fontWeight:900 } }, "×")
+                    );
+                  }),
+                  React.createElement("div", { style:{ display:"flex", gap:8, marginTop:10 } },
+                    React.createElement("button", { onClick:function(){ fr.current.click(); }, style:{ flex:1, background:"#E3F2FD", border:"none", borderRadius:12, padding:"8px", fontWeight:700, fontSize:12 } }, "+ Aggiungi"),
+                    React.createElement("button", { onClick:function(){ uploadToAI(pendingFiles); setPendingFiles([]); }, style:{ flex:2, background:"#27AE60", color:"#fff", border:"none", borderRadius:12, padding:"8px", fontWeight:900, fontSize:13 } }, "▶ Analizza")
+                  )
+                ),
             React.createElement("button", { onClick:function(){ addActivity(null); }, style:{ flex:1, background:scColor, color:"#fff", border:"none", borderRadius:25, fontSize:35 } }, "+"),
             clipboard ? React.createElement("button", { onClick:function(){ addActivity(clipboard); }, style:{ flex:1.5, background:"#34495E", color:"#fff", border:"none", borderRadius:25, fontSize:10, fontWeight:900 } }, "PASTE") : null,
-            React.createElement("input", { type:"file", ref:fr, style:{ display:"none" }, onChange:function(e){ uploadToAI(e.target.files); } })
+            React.createElement("input", { type:"file", ref:fr, style:{ display:"none" }, multiple:true, accept:"image/*,application/pdf", onChange:function(e){
+              var newFiles = Array.from(e.target.files);
+              setPendingFiles(function(prev){ return prev.concat(newFiles); });
+              e.target.value = "";
+            } })
           )
         )
       ),
@@ -761,7 +785,7 @@ export default function App() {
         var res = await fetch("/api/generate", {
           method:"POST",
           headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ imageB64:b64, mimeType:files[0].type || "image/jpeg", prompt:promptMsg })
+          body: JSON.stringify({ imageB64:b64, mimeType:mimeType, prompt:promptMsg })
         });
         var d = await res.json();
         var contextText = d.text.trim();
