@@ -243,59 +243,6 @@ function LessonView(props) {
       var cleanText = d.text.replace(/```json|```/g, "").trim();
       var parsed = JSON.parse(cleanText.match(/\{[\s\S]*\}|\[[\s\S]*\]/)[0]);
 
-      // Estrai e carica immagini se presenti
-      // Estrai immagini dal PDF
-      try {
-        setSs("Cerco immagini nel documento...");
-        var imgRes2 = await fetch("/api/generate", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({
-            imageB64: b64,
-            mimeType: mimeType,
-            prompt: "Look carefully at ALL pages of this document. Find any illustrations, drawings, worksheet images, or card game images embedded in the pages (NOT the Kids&Us logo, NOT text, NOT decorative borders). For each image found, return: the exact activity name it belongs to (copy it from the lesson plan), and a brief description of the image. Return ONLY valid JSON array: [{activityName:'exact name', description:'what the image shows'}] or [] if none found. No markdown, no explanation."
-          })
-        });
-        var imgData2 = await imgRes2.json();
-        var imgClean2 = imgData2.text.replace(/```json|```/g, "").trim();
-        var bracketStart = imgClean2.indexOf("[");
-        var bracketEnd = imgClean2.lastIndexOf("]");
-        if (bracketStart >= 0 && bracketEnd > bracketStart) {
-          var imgList2 = JSON.parse(imgClean2.slice(bracketStart, bracketEnd+1));
-          if (imgList2 && imgList2.length > 0) {
-            setSs("Carico " + imgList2.length + " immagini...");
-            var uploadRes2 = await fetch("/api/upload-image", {
-              method:"POST",
-              headers:{ "Content-Type":"application/json" },
-              body: JSON.stringify({
-                imageB64: b64,
-                mimeType: mimeType,
-                filename: sc.id + "-" + sp.replace(/ /g,"-") + "-day" + sd + "-" + Date.now()
-              })
-            });
-            var uploadData2 = await uploadRes2.json();
-            if (uploadData2.url) {
-              parsed = parsed.map(function(act) {
-                var actName = (act.name || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ");
-                var match2 = imgList2.find(function(img) {
-                  var imgName = (img.activityName || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ");
-                  var actWords = actName.split(" ").filter(function(w){ return w.length > 3; });
-                  var imgWords = imgName.split(" ").filter(function(w){ return w.length > 3; });
-                  return actWords.some(function(w){ return imgName.includes(w); }) ||
-                         imgWords.some(function(w){ return actName.includes(w); });
-                });
-                if (match2) {
-                  return Object.assign({}, act, { imageUrl: uploadData2.url, imageLabel: match2.description || match2.activityName });
-                }
-                return act;
-              });
-            }
-          }
-        }
-      } catch(imgErr) {
-        console.log("Image extraction skipped:", imgErr.message);
-      }
-
       saveActs(parsed);
       setSs("Lezione sincronizzata!");
       setTimeout(function() { setScn(false); }, 3000);
@@ -512,11 +459,7 @@ function LessonView(props) {
                       }, a.surprise || desc.slice(0, 80))
                     );
                   })(),
-                  a.imageUrl ? React.createElement("div", { style:{ margin:"8px 0" } },
-                    React.createElement("a", { href:a.imageUrl, target:"_blank", style:{ display:"inline-flex", alignItems:"center", gap:6, background:"#E3F2FD", color:"#1565C0", borderRadius:8, padding:"6px 12px", fontSize:13, fontWeight:700, textDecoration:"none" } },
-                      "\uD83D\uDDBC\uFE0F " + (a.imageLabel || "Vedi immagine")
-                    )
-                  ) : null,
+
                   desc ? (function() {
                     var fontSize = isLive ? (isCurrent ? 22 : 18) : 15;
                     var parts = desc.split(/\*\*([^*]+)\*\*/);
