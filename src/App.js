@@ -371,7 +371,7 @@ style: { fontSize:36, fontWeight:300, color:"rgba(255,255,255,0.3)", letterSpaci
 // Manual indicator
 isManual ? React.createElement("div", {
 style: { fontSize:12, color:"rgba(255,195,0,0.6)", fontWeight:700, marginBottom:8, letterSpacing:1 }
-}, "AVANZAMENTO MANUALE \u2014 riprende all'orario"),
+}, "AVANZAMENTO MANUALE \u2014 riprende all\u2019orario"),
 
 // Audio badge
 displayAct && safeStr(displayAct.audio)
