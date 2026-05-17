@@ -281,20 +281,39 @@ break;
 }
 
 var currentAct = currentActIdx >= 0 ? plan[currentActIdx] : null;
-var remainingSecsLight = 0;
-if (currentAct) {
-var _ls = timeToMins(currentAct.start) * 60;
-var _le = timeToMins(currentAct.end) * 60;
-remainingSecsLight = Math.max(0, _le - nowSecs);
-}
 
 // ── LIGHT MODE: full-screen minimal view ──────────────────────────────────
 if (isLight) {
-var nextAct = currentActIdx >= 0 && currentActIdx + 1 < plan.length ? plan[currentActIdx + 1] : null;
+// manualLightIdx: se null segue l'orario, altrimenti è l'indice scelto manualmente
+// Auto-resume: se l'orario reale raggiunge o supera l'inizio dell'attività manuale+1,
+// resettiamo manualLightIdx a null e l'auto riprende
+var sml = useState(null); var manualLightIdx = sml[0]; var setManualLightIdx = sml[1];
+
+// Determina quale attività mostrare
+var displayIdx = manualLightIdx !== null ? manualLightIdx : currentActIdx;
+
+// Auto-resume: se l'orario reale ha raggiunto o superato l'inizio
+// dell'attività successiva a quella manuale, torna all'auto
+if (manualLightIdx !== null && currentActIdx > manualLightIdx) {
+setManualLightIdx(null);
+}
+
+var displayAct = displayIdx >= 0 && displayIdx < plan.length ? plan[displayIdx] : null;
+var nextDisplayAct = displayIdx >= 0 && displayIdx + 1 < plan.length ? plan[displayIdx + 1] : null;
+
+// Countdown: tempo rimanente alla fine dell'attività visualizzata
+var remainingSecsLight = 0;
+if (displayAct) {
+var _le = timeToMins(displayAct.end) * 60;
+remainingSecsLight = Math.max(0, _le - nowSecs);
+}
+
+var isManual = manualLightIdx !== null;
+
 return React.createElement("div", {
 style: {
 minHeight:"100vh",
-background: currentAct ? "#0D1B2A" : "#1a1a2e",
+background: displayAct ? "#0D1B2A" : "#1a1a2e",
 display:"flex", flexDirection:"column",
 fontFamily:"sans-serif",
 userSelect:"none"
@@ -332,36 +351,41 @@ React.createElement("div", {
 style: { fontSize:28, fontWeight:300, color:"rgba(255,255,255,0.4)", marginBottom:30, letterSpacing:4 }
 }, now.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" })),
 
-// Current activity name — HUGE
-currentAct
+// Activity name — HUGE
+displayAct
 ? React.createElement("div", {
 style: {
 fontSize:"clamp(52px, 10vw, 100px)",
 fontWeight:900,
-color:"#FFFFFF",
+color: isManual ? "#FBC02D" : "#FFFFFF",
 lineHeight:1.1,
 letterSpacing:-2,
 textShadow:"0 0 60px rgba(255,255,255,0.15)",
 marginBottom:24
 }
-}, safeStr(currentAct.name))
+}, safeStr(displayAct.name))
 : React.createElement("div", {
 style: { fontSize:36, fontWeight:300, color:"rgba(255,255,255,0.3)", letterSpacing:2 }
 }, "\u23F3 In attesa..."),
 
+// Manual indicator
+isManual ? React.createElement("div", {
+style: { fontSize:12, color:"rgba(255,195,0,0.6)", fontWeight:700, marginBottom:8, letterSpacing:1 }
+}, "AVANZAMENTO MANUALE \u2014 riprende all'orario"),
+
 // Audio badge
-currentAct && safeStr(currentAct.audio)
+displayAct && safeStr(displayAct.audio)
 ? React.createElement("div", {
 style: {
 background:"#FBC02D", color:"#000",
 padding:"8px 20px", borderRadius:30,
 fontWeight:900, fontSize:18, marginBottom:24
 }
-}, "\uD83C\uDFB5 " + safeStr(currentAct.audio))
+}, "\uD83C\uDFB5 " + safeStr(displayAct.audio))
 : null,
 
 // Countdown timer
-currentAct
+displayAct
 ? React.createElement("div", {
 style: {
 fontSize:48, fontWeight:900,
@@ -374,8 +398,38 @@ Math.floor(remainingSecsLight / 60) + ":" + String(remainingSecsLight % 60).padS
 )
 : null,
 
-// Next activity
-nextAct
+// Prev / Next navigation buttons
+plan.length > 0 ? React.createElement("div", {
+style: { display:"flex", gap:20, alignItems:"center", marginBottom:24 }
+},
+React.createElement("button", {
+onClick: function() {
+var target = (displayIdx > 0) ? displayIdx - 1 : 0;
+setManualLightIdx(target === currentActIdx ? null : target);
+},
+disabled: displayIdx <= 0,
+style: {
+fontSize:32, background:"rgba(255,255,255,0.12)", border:"none", color:"#fff",
+borderRadius:"50%", width:60, height:60, cursor: displayIdx <= 0 ? "not-allowed" : "pointer",
+opacity: displayIdx <= 0 ? 0.3 : 1, fontWeight:900
+}
+}, "\u25C0"),
+React.createElement("button", {
+onClick: function() {
+var target = (displayIdx < plan.length - 1) ? displayIdx + 1 : plan.length - 1;
+setManualLightIdx(target === currentActIdx ? null : target);
+},
+disabled: displayIdx >= plan.length - 1,
+style: {
+fontSize:32, background:"rgba(255,255,255,0.12)", border:"none", color:"#fff",
+borderRadius:"50%", width:60, height:60, cursor: displayIdx >= plan.length - 1 ? "not-allowed" : "pointer",
+opacity: displayIdx >= plan.length - 1 ? 0.3 : 1, fontWeight:900
+}
+}, "\u25B6")
+) : null,
+
+// Next activity label
+nextDisplayAct
 ? React.createElement("div", {
 style: {
 background:"rgba(255,255,255,0.07)",
@@ -383,7 +437,7 @@ borderRadius:16, padding:"12px 30px",
 color:"rgba(255,255,255,0.45)",
 fontSize:18, fontWeight:700
 }
-}, "Prossima: " + safeStr(nextAct.name))
+}, "Prossima: " + safeStr(nextDisplayAct.name))
 : null
 ),
 
@@ -396,7 +450,7 @@ background:"rgba(0,0,0,0.3)", flexWrap:"nowrap"
 },
 plan.map(function(a, i) {
 var isPast = i < currentActIdx;
-var isCur = i === currentActIdx;
+var isCur = i === displayIdx;
 return React.createElement("div", {
 key:i,
 style: {
