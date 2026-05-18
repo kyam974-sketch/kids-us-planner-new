@@ -116,6 +116,7 @@ var s6 = useState(false); var scn = s6[0]; var setScn = s6[1];
 var s7 = useState(""); var ss = s7[0]; var setSs = s7[1];
 var fr = useRef(null);
 var s8 = useState([]); var pendingFiles = s8[0]; var setPendingFiles = s8[1];
+var s9 = useState(null); var manualLightIdx = s9[0]; var setManualLightIdx = s9[1];
 
 useEffect(function() {
 var t = setInterval(function() { setNow(new Date()); }, 1000);
@@ -284,11 +285,6 @@ var currentAct = currentActIdx >= 0 ? plan[currentActIdx] : null;
 
 // ── LIGHT MODE: full-screen minimal view ──────────────────────────────────
 if (isLight) {
-// manualLightIdx: se null segue l'orario, altrimenti è l'indice scelto manualmente
-// Auto-resume: se l'orario reale raggiunge o supera l'inizio dell'attività manuale+1,
-// resettiamo manualLightIdx a null e l'auto riprende
-var sml = useState(null); var manualLightIdx = sml[0]; var setManualLightIdx = sml[1];
-
 // Determina quale attività mostrare
 var displayIdx = manualLightIdx !== null ? manualLightIdx : currentActIdx;
 
@@ -371,7 +367,7 @@ style: { fontSize:36, fontWeight:300, color:"rgba(255,255,255,0.3)", letterSpaci
 // Manual indicator
 isManual ? React.createElement("div", {
 style: { fontSize:12, color:"rgba(255,195,0,0.6)", fontWeight:700, marginBottom:8, letterSpacing:1 }
-}, "AVANZAMENTO MANUALE \u2014 riprende all\u2019orario"),
+}, "AVANZAMENTO MANUALE \u2014 riprende all\u2019orario") : null,
 
 // Audio badge
 displayAct && safeStr(displayAct.audio)
